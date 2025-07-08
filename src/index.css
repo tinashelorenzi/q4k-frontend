@@ -4,31 +4,266 @@
 
 @layer base {
   :root {
-    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
     line-height: 1.5;
     font-weight: 400;
-    color-scheme: light dark;
-    color: rgba(255, 255, 255, 0.87);
-    background-color: #242424;
+    color-scheme: dark;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
+  * {
+    box-sizing: border-box;
+  }
+
   body {
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
+    background: linear-gradient(135deg, #0f172a 0%, #581c87 50%, #312e81 100%);
+    overflow-x: hidden;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
   }
 }
 
 @layer components {
+  /* Glass card component */
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
+  }
+
+  .glass-card-hover {
+    @apply glass-card hover:bg-white/10 transition-all duration-300;
+  }
+
+  /* Button variants */
   .btn-primary {
-    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+    @apply bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-3 px-6 rounded-lg transition-all duration-300 hover:scale-105 shadow-lg shadow-purple-500/25;
   }
   
   .btn-secondary {
-    @apply bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+    @apply bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white font-medium py-3 px-6 rounded-lg border border-white/20 transition-all duration-300 hover:scale-105;
+  }
+
+  .btn-ghost {
+    @apply bg-white/5 hover:bg-white/10 backdrop-blur-sm text-white font-medium py-3 px-6 rounded-lg border border-white/10 transition-all duration-300;
+  }
+
+  /* Navigation styles */
+  .nav-item {
+    @apply px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300;
+  }
+
+  .nav-item-active {
+    @apply nav-item bg-white/20 text-white shadow-lg backdrop-blur-sm;
+  }
+
+  .nav-item-inactive {
+    @apply nav-item text-white/70 hover:text-white hover:bg-white/10;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400;
+  }
+
+  .gradient-text-blue {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400;
+  }
+
+  /* Animated gradient background */
+  .animated-gradient {
+    background: linear-gradient(-45deg, #0f172a, #581c87, #312e81, #1e1b4b);
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+  }
+
+  /* Icon containers */
+  .icon-container {
+    @apply w-12 h-12 rounded-xl flex items-center justify-center text-2xl transition-transform duration-300;
+  }
+
+  /* Feature cards */
+  .feature-card {
+    @apply glass-card-hover p-8 hover:scale-105;
+  }
+
+  /* Stat cards */
+  .stat-card {
+    @apply glass-card-hover p-8;
+  }
+
+  /* Contact cards */
+  .contact-item {
+    @apply flex items-center space-x-3;
+  }
+
+  .contact-icon {
+    @apply w-10 h-10 rounded-lg flex items-center justify-center;
+  }
+
+  /* Header blur effect */
+  .header-blur {
+    @apply bg-white/5 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50;
+  }
+
+  /* Footer blur effect */
+  .footer-blur {
+    @apply bg-white/5 backdrop-blur-xl border-t border-white/10;
+  }
+}
+
+@layer utilities {
+  /* Animation utilities */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-pulse-soft {
+    animation: pulse-soft 4s ease-in-out infinite;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.8s ease-out;
+  }
+
+  /* Custom animations */
+  @keyframes gradientShift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+
+  @keyframes pulse-soft {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Glow effects */
+  .glow-blue {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 20px rgba(147, 51, 234, 0.3);
+  }
+
+  .glow-pink {
+    box-shadow: 0 0 20px rgba(236, 72, 153, 0.3);
+  }
+
+  /* Glass morphism variants */
+  .glass-light {
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
+  }
+
+  .glass-medium {
+    @apply bg-white/5 backdrop-blur-lg border border-white/15;
+  }
+
+  .glass-strong {
+    @apply bg-white/20 backdrop-blur-xl border border-white/30;
+  }
+
+  /* Responsive text utilities */
+  .text-responsive-xs {
+    @apply text-sm sm:text-base;
+  }
+
+  .text-responsive-sm {
+    @apply text-base sm:text-lg;
+  }
+
+  .text-responsive-md {
+    @apply text-lg sm:text-xl md:text-2xl;
+  }
+
+  .text-responsive-lg {
+    @apply text-2xl sm:text-3xl md:text-4xl lg:text-5xl;
+  }
+
+  .text-responsive-xl {
+    @apply text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl;
+  }
+}
+
+/* Mobile specific optimizations */
+@media (max-width: 768px) {
+  .mobile-padding {
+    @apply px-4 py-2;
+  }
+
+  .mobile-text {
+    @apply text-sm;
+  }
+
+  .mobile-button {
+    @apply text-sm py-2 px-4;
+  }
+}
+
+/* Loading states */
+.loading-skeleton {
+  @apply bg-white/10 animate-pulse rounded;
+}
+
+/* Focus states for accessibility */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
   }
 }
