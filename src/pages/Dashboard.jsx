@@ -1,10 +1,10 @@
 import { useAuth } from '../context/AuthContext'
 import { useState } from 'react'
-import { Overview, Sessions, Progress, Profile } from '../components/dashboard'
+import { Overview, Sessions, Progress, Profile, TutorDashboard, MyGigs, TutorSessions, TutorSettings } from '../components/dashboard'
 
 const Dashboard = () => {
   const { user, tutorProfile, logout, isAdmin, isTutor, isManager } = useAuth()
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState('dashboard')
 
   const handleLogout = async () => {
     try {
@@ -41,7 +41,13 @@ const Dashboard = () => {
     }
   }
 
-  const tabs = [
+  // Different tabs for tutors vs regular users
+  const tabs = isTutor() ? [
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'gigs', label: 'My Gigs', icon: '📚' },
+    { id: 'sessions', label: 'Sessions', icon: '⏰' },
+    { id: 'settings', label: 'Settings', icon: '⚙️' }
+  ] : [
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'sessions', label: 'Sessions', icon: '📚' },
     { id: 'progress', label: 'Progress', icon: '📈' },
@@ -99,7 +105,7 @@ const Dashboard = () => {
                 {getDashboardGreeting()}, {user?.first_name || user?.username}! 👋
               </h2>
               <p className="text-white/70 text-sm sm:text-base">
-                Ready to continue your learning journey?
+                {isTutor() ? 'Ready to help students learn?' : 'Ready to continue your learning journey?'}
               </p>
             </div>
             <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${getRoleColor()} text-white text-xs sm:text-sm font-medium`}>
@@ -133,17 +139,23 @@ const Dashboard = () => {
       {/* Main Content Area */}
       <main className="px-4 sm:px-6 pb-6 space-y-4 sm:space-y-6">
         
-        {/* Overview Tab */}
-        {activeTab === 'overview' && <Overview />}
-
-        {/* Sessions Tab */}
-        {activeTab === 'sessions' && <Sessions />}
-
-        {/* Progress Tab */}
-        {activeTab === 'progress' && <Progress />}
-
-        {/* Profile Tab */}
-        {activeTab === 'profile' && <Profile />}
+        {/* Tutor-specific tabs */}
+        {isTutor() ? (
+          <>
+            {activeTab === 'dashboard' && <TutorDashboard />}
+            {activeTab === 'gigs' && <MyGigs />}
+            {activeTab === 'sessions' && <TutorSessions />}
+            {activeTab === 'settings' && <TutorSettings />}
+          </>
+        ) : (
+          <>
+            {/* Regular user tabs */}
+            {activeTab === 'overview' && <Overview />}
+            {activeTab === 'sessions' && <Sessions />}
+            {activeTab === 'progress' && <Progress />}
+            {activeTab === 'profile' && <Profile />}
+          </>
+        )}
 
       </main>
 
