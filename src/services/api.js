@@ -224,7 +224,7 @@ class ApiService {
   // Session Management endpoints
   async getTutorSessions(tutorId, params = {}) {
     const queryString = new URLSearchParams(params).toString()
-    const endpoint = `/sessions/tutor/${tutorId}/${queryString ? `?${queryString}` : ''}`
+    const endpoint = `/gigs/sessions/tutor/${tutorId}/${queryString ? `?${queryString}` : ''}`
     return await this.apiCall(endpoint)
   }
 
