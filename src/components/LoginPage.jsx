@@ -1,6 +1,10 @@
 import { useState } from 'react'
+import { useAuth } from '../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 
 const LoginPage = ({ onBack }) => {
+  const { login } = useAuth()
+  const navigate = useNavigate()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -31,17 +35,24 @@ const LoginPage = ({ onBack }) => {
     }
 
     try {
-      // TODO: Replace with actual API call to your Django backend
-      console.log('Login attempt:', formData)
+      await login(formData.email, formData.password)
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      // For now, just log the attempt
-      alert('Login functionality will be connected to your Django backend')
+      // Redirect to dashboard on successful login
+      navigate('/dashboard')
       
     } catch (err) {
-      setError('Login failed. Please check your credentials.')
+      // Handle different types of errors
+      if (err.message.includes('deactivated')) {
+        setError('Your account has been deactivated. Please contact support.')
+      } else if (err.message.includes('pending approval')) {
+        setError('Your tutor account is pending approval. Please contact support.')
+      } else if (err.message.includes('verify your email')) {
+        setError('Please verify your email address before logging in.')
+      } else if (err.message.includes('credentials')) {
+        setError('Invalid email or password. Please try again.')
+      } else {
+        setError(err.message || 'Login failed. Please try again.')
+      }
     } finally {
       setIsLoading(false)
     }

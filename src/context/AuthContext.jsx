@@ -17,6 +17,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [tutorProfile, setTutorProfile] = useState(null)
+  const [tutor, setTutor] = useState(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -33,9 +34,11 @@ export const AuthProvider = ({ children }) => {
       if (apiService.isAuthenticated()) {
         const userData = apiService.getCurrentUser()
         const tutorData = apiService.getTutorProfile()
+        const tutorInfo = apiService.getTutorInfo()
         
         setUser(userData)
         setTutorProfile(tutorData)
+        setTutor(tutorInfo)
         setIsAuthenticated(true)
 
         // Verify token is still valid
@@ -61,8 +64,23 @@ export const AuthProvider = ({ children }) => {
       
       const response = await apiService.login(email, password)
       
+      // Validate user status
+      if (!response.user.is_active) {
+        throw new Error('Your account has been deactivated. Please contact support.')
+      }
+
+      if (response.user.user_type === 'tutor' && !response.user.is_approved) {
+        throw new Error('Your tutor account is pending approval. Please contact support.')
+      }
+
+      if (!response.user.is_verified) {
+        throw new Error('Please verify your email address before logging in.')
+      }
+
+      // Set user data
       setUser(response.user)
-      setTutorProfile(response.tutor_profile)
+      setTutorProfile(response.tutor_profile || null)
+      setTutor(response.tutor || null)
       setIsAuthenticated(true)
       
       return response
@@ -84,6 +102,7 @@ export const AuthProvider = ({ children }) => {
       // Always clear state regardless of API call success
       setUser(null)
       setTutorProfile(null)
+      setTutor(null)
       setIsAuthenticated(false)
       setIsLoading(false)
     }
@@ -99,6 +118,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('tutor_profile', JSON.stringify(profileData))
   }
 
+  const updateTutor = (tutorData) => {
+    setTutor(tutorData)
+    localStorage.setItem('tutor_info', JSON.stringify(tutorData))
+  }
+
   // Helper function to check user role
   const hasRole = (role) => {
     return user?.user_type === role
@@ -109,11 +133,17 @@ export const AuthProvider = ({ children }) => {
   const isManager = () => hasRole('manager')
   const isStaff = () => hasRole('staff')
 
+  // Get tutor ID for API calls
+  const getTutorId = () => {
+    return tutor?.id || user?.id
+  }
+
   // Context value
   const value = {
     // State
     user,
     tutorProfile,
+    tutor,
     isAuthenticated,
     isLoading,
     
@@ -122,6 +152,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateUser,
     updateTutorProfile,
+    updateTutor,
     
     // Helpers
     hasRole,
@@ -129,6 +160,7 @@ export const AuthProvider = ({ children }) => {
     isTutor,
     isManager,
     isStaff,
+    getTutorId,
     
     // Re-initialize auth (useful for token refresh scenarios)
     initializeAuth
