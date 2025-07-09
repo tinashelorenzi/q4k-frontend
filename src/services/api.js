@@ -233,9 +233,19 @@ class ApiService {
   }
 
   async createSession(sessionData) {
-    return await this.apiCall('/sessions/', {
+    // Extract gig ID from the sessionData
+    const gigId = sessionData.gig?.id || sessionData.gig
+    
+    if (!gigId) {
+      throw new Error('Gig ID is required to create a session')
+    }
+    
+    // Remove gig from sessionData since it will be added by the backend
+    const { gig, ...cleanSessionData } = sessionData
+    
+    return await this.apiCall(`/gigs/${gigId}/sessions/`, {
       method: 'POST',
-      body: JSON.stringify(sessionData)
+      body: JSON.stringify(cleanSessionData)
     })
   }
 

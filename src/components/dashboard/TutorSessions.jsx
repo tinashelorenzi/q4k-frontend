@@ -5,7 +5,9 @@ import apiService from '../../services/api'
 const TutorSessions = () => {
   const { tutorProfile, getTutorId } = useAuth()
   const [sessions, setSessions] = useState([])
+  const [tutorGigs, setTutorGigs] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingGigs, setIsLoadingGigs] = useState(false)
   const [error, setError] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -22,7 +24,29 @@ const TutorSessions = () => {
 
   useEffect(() => {
     loadSessions()
+    loadTutorGigs()
   }, [])
+
+  const loadTutorGigs = async () => {
+    try {
+      setIsLoadingGigs(true)
+      setError('')
+      
+      const tutorId = getTutorId()
+      if (!tutorId) {
+        setError('Unable to load tutor information')
+        return
+      }
+
+      const response = await apiService.getTutorGigs(tutorId)
+      setTutorGigs(response.results || response || [])
+    } catch (err) {
+      console.error('Error loading tutor gigs:', err)
+      setError('Failed to load gigs. Please try again.')
+    } finally {
+      setIsLoadingGigs(false)
+    }
+  }
 
   const loadSessions = async () => {
     try {
@@ -56,6 +80,7 @@ const TutorSessions = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setError('') // Clear previous errors
     
     try {
       // Calculate hours logged if start and end times are provided
@@ -66,12 +91,29 @@ const TutorSessions = () => {
         const diffMs = end - start
         calculatedHours = (diffMs / (1000 * 60 * 60)).toFixed(2)
       }
-
-      const sessionData = {
-        ...formData,
-        hours_logged: calculatedHours
+  
+      // Get gig ID from the formData.gig (now a string)
+      const gigId = formData.gig
+      
+      console.log('Selected gig ID:', gigId) // Debug log
+      
+      if (!gigId) {
+        setError('Please select a gig')
+        return
       }
-
+  
+      const sessionData = {
+        gig: gigId,
+        session_date: formData.session_date,
+        start_time: formData.start_time,
+        end_time: formData.end_time,
+        hours_logged: calculatedHours,
+        session_notes: formData.session_notes,
+        student_attendance: formData.student_attendance
+      }
+      
+      console.log('Session data being sent:', sessionData) // Debug log
+  
       await apiService.createSession(sessionData)
       
       // Reset form and close modal
@@ -85,13 +127,33 @@ const TutorSessions = () => {
         student_attendance: true
       })
       setShowModal(false)
+      setError('')
       
       // Reload sessions
       await loadSessions()
       
     } catch (err) {
       console.error('Error creating session:', err)
-      setError(err.message || 'Failed to create session. Please try again.')
+      
+      // Try to extract the user-friendly message from the error
+      let errorMessage = 'Failed to create session. Please try again.'
+      
+      if (err.message) {
+        // Check if the error message contains JSON (API response)
+        try {
+          const errorData = JSON.parse(err.message)
+          if (errorData.message) {
+            errorMessage = errorData.message
+          } else if (errorData.error) {
+            errorMessage = errorData.error
+          }
+        } catch {
+          // If it's not JSON, use the message as-is
+          errorMessage = err.message
+        }
+      }
+      
+      setError(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -345,17 +407,41 @@ const TutorSessions = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-white/70 text-sm mb-2">
-                    Gig ID <span className="text-red-400">*</span>
+                    Select Gig <span className="text-red-400">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="gig"
                     value={formData.gig}
                     onChange={handleInputChange}
-                    placeholder="e.g., GIG-0001"
                     required
-                    className="w-full p-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/50 focus:border-white/30 focus:outline-none"
-                  />
+                    disabled={isLoadingGigs}
+                    className="w-full p-3 bg-white/5 border border-white/10 rounded-lg text-white focus:border-white/30 focus:outline-none disabled:opacity-50"
+                  >
+                    <option value="">
+                      {isLoadingGigs ? 'Loading gigs...' : 'Select a Gig'}
+                    </option>
+                    {tutorGigs.length === 0 && !isLoadingGigs ? (
+                      <option value="" disabled>
+                        No gigs available
+                      </option>
+                    ) : (
+                      tutorGigs.map((gig) => (
+                        <option key={gig.id} value={gig.id}>
+                          {gig.gig_id} - {gig.subject_name} - {gig.client_name || 'Unknown Client'}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  {isLoadingGigs && (
+                    <p className="text-white/50 text-xs mt-1">
+                      Loading your assigned gigs...
+                    </p>
+                  )}
+                  {tutorGigs.length === 0 && !isLoadingGigs && (
+                    <p className="text-yellow-400/80 text-xs mt-1">
+                      No gigs available. Please contact support if you believe this is an error.
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -456,10 +542,28 @@ const TutorSessions = () => {
                       <p className="text-blue-300/80 text-xs mt-1">
                         This session will be marked as "Pending" until an administrator validates it. 
                         You can view all your pending sessions in the Pending tab.
+                        </p>
+                        <br />
+                        <p className="text-blue-300/80 text-xs mt-1">
+                        Note: Only gigs within the total hours of the gig will be counted towards your total hours. You may not record exceeded hours(Validation errors will show).
                       </p>
                     </div>
                   </div>
                 </div>
+
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4">
+                    <div className="flex items-start space-x-3">
+                      <span className="text-red-400 text-lg">⚠️</span>
+                      <div>
+                        <h4 className="text-red-400 font-medium text-sm">Error</h4>
+                        <p className="text-red-300/80 text-xs mt-1">
+                          {error}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex space-x-3 pt-4">
                   <button
