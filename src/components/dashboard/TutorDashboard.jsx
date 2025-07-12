@@ -72,7 +72,7 @@ const TutorDashboard = () => {
               Welcome back, {user?.first_name || 'Tutor'}! 👋
             </h1>
             <p className="text-white/70">
-              Tutor ID: {tutorProfile?.tutor_id || user?.id} • Ready to inspire minds today?
+              Tutor ID: TUT-{tutorProfile?.tutor_id || user?.id} • Ready to inspire minds today?
             </p>
           </div>
           <div className="mt-4 sm:mt-0">
