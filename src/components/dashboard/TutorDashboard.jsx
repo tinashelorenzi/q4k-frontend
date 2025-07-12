@@ -8,7 +8,7 @@ import TutorSessions from './TutorSessions'
 import TutorSettings from './TutorSettings'
 
 const TutorDashboard = () => {
-  const { user, tutorProfile } = useAuth()
+  const { user, tutorProfile, tutor } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(false)
 

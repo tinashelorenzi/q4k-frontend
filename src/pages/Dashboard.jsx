@@ -3,8 +3,9 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { TutorDashboard } from '../components/dashboard'
 
+
 const Dashboard = () => {
-  const { user, tutorProfile, logout } = useAuth()
+  const { user, tutorProfile, logout, tutor } = useAuth()
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
