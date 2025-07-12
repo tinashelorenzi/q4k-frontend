@@ -4,7 +4,15 @@ import { useAuth } from '../context/AuthContext'
 
 const Header = ({ activeTab, setActiveTab, onLogin }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { isAuthenticated, logout } = useAuth()
+  const { isAuthenticated, logout, user, tutorProfile } = useAuth()
+
+  // Format tutor ID with TUT- prefix and 4-digit padding
+  const formatTutorId = (id) => {
+    if (!id) return ''
+    const numericId = parseInt(id, 10)
+    if (isNaN(numericId)) return id
+    return `TUT-${numericId.toString().padStart(4, '0')}`
+  }
 
   const navigation = [
     { name: 'Home', path: 'home' },
@@ -56,6 +64,14 @@ const Header = ({ activeTab, setActiveTab, onLogin }) => {
           <div className="hidden md:flex items-center space-x-4">
             {isAuthenticated ? (
               <>
+                <div className="text-right mr-4">
+                  <p className="text-white font-medium text-sm">
+                    {user?.first_name} {user?.last_name}
+                  </p>
+                  <p className="text-white/60 text-xs">
+                    {formatTutorId(tutorProfile?.tutor_id || user?.id)}
+                  </p>
+                </div>
                 <button
                   onClick={() => setActiveTab('dashboard')}
                   className="text-white/80 hover:text-white transition-colors duration-300 font-medium"
@@ -118,6 +134,14 @@ const Header = ({ activeTab, setActiveTab, onLogin }) => {
               <div className="border-t border-white/20 pt-4">
                 {isAuthenticated ? (
                   <>
+                    <div className="px-2 py-3 mb-3 bg-white/5 rounded-lg">
+                      <p className="text-white font-medium text-sm">
+                        {user?.first_name} {user?.last_name}
+                      </p>
+                      <p className="text-white/60 text-xs">
+                        {formatTutorId(tutorProfile?.tutor_id || user?.id)}
+                      </p>
+                    </div>
                     <button
                       onClick={() => {
                         setActiveTab('dashboard')
