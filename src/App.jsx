@@ -1,5 +1,6 @@
-// src/App.jsx - Updated to include account setup functionality
-import { useState, useEffect } from 'react'
+// src/App.jsx - Updated to use React Router while preserving Dashboard functionality
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -15,7 +16,7 @@ import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import LoginPage from './pages/LoginPage'
 import Dashboard from './pages/Dashboard' // Your existing Dashboard that uses TutorDashboard component
-import AccountSetupPage from './pages/AccountSetupPage' // New import
+import AccountSetupPage from './pages/AccountSetupPage'
 
 // Loading component
 const LoadingScreen = () => (
@@ -30,57 +31,76 @@ const LoadingScreen = () => (
   </div>
 )
 
+// Public Layout Component
+const PublicLayout = ({ children }) => {
+  const location = useLocation()
+  const navigate = useNavigate()
+  
+  const getCurrentPage = () => {
+    switch (location.pathname) {
+      case '/': return 'home'
+      case '/features': return 'features'
+      case '/about': return 'about'
+      case '/contact': return 'contact'
+      default: return 'home'
+    }
+  }
+
+  const handleLogin = () => {
+    navigate('/login')
+  }
+
+  const handleNavigation = (page) => {
+    switch (page) {
+      case 'home':
+        navigate('/')
+        break
+      case 'features':
+        navigate('/features')
+        break
+      case 'about':
+        navigate('/about')
+        break
+      case 'contact':
+        navigate('/contact')
+        break
+      default:
+        navigate('/')
+    }
+  }
+
+  return (
+    <div className="min-h-screen animated-gradient">
+      <Header 
+        activeTab={getCurrentPage()} 
+        setActiveTab={handleNavigation}
+        onLogin={handleLogin}
+      />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {children}
+      </main>
+      <Footer />
+    </div>
+  )
+}
+
 // Main App Content (wrapped by AuthProvider)
 const AppContent = () => {
   const { isAuthenticated, isLoading } = useAuth()
-  const [currentPage, setCurrentPage] = useState('home')
+  const navigate = useNavigate()
   
-  // Check for setup token on app load
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const token = urlParams.get('token')
-    
-    // If there's a token in URL, show account setup page
-    if (token && window.location.pathname === '/setup-account') {
-      setCurrentPage('setup-account')
-    }
-  }, [])
-  
-  // Handle page navigation (ready for React Router replacement)
-  const navigateTo = (page) => {
-    setCurrentPage(page)
-    // Scroll to top when navigating
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-    
-    // Update URL for setup page
-    if (page === 'setup-account') {
-      window.history.pushState({}, '', '/setup-account' + window.location.search)
-    } else {
-      window.history.pushState({}, '', '/')
-    }
+  const handleLoginSuccess = (userData) => {
+    console.log('Login successful, user data:', userData)
+    navigate('/dashboard')
   }
 
-  // Handle login flow
-  const handleLogin = () => {
-    setCurrentPage('login')
+  const handleSetupSuccess = () => {
+    console.log('Account setup successful')
+    navigate('/dashboard')
   }
 
   const handleBackToHome = () => {
-    setCurrentPage('home')
-    window.history.pushState({}, '', '/')
-  }
-
-  const handleLoginSuccess = (userData) => {
-    console.log('Login successful, user data:', userData)
-    // The AuthContext will handle the state update
-    // We can add additional logic here if needed
-  }
-
-  // Handle successful account setup
-  const handleSetupSuccess = () => {
-    // After successful setup, the user is automatically logged in
-    // The auth context will handle the state change
-    console.log('Account setup successful')
+    navigate('/')
   }
 
   // Show loading screen while auth is initializing
@@ -88,52 +108,60 @@ const AppContent = () => {
     return <LoadingScreen />
   }
 
-  // Show account setup page if on setup route (regardless of auth status)
-  if (currentPage === 'setup-account') {
-    return (
-      <AccountSetupPage 
-        onSetupSuccess={handleSetupSuccess}
-        onBack={handleBackToHome}
-      />
-    )
-  }
-
-  // Show dashboard if user is authenticated
-  if (isAuthenticated) {
-    return <Dashboard />
-  }
-
-  // Render login page separately (full screen)
-  if (currentPage === 'login') {
-    return (
-      <LoginPage 
-        onBack={handleBackToHome} 
-        onLoginSuccess={handleLoginSuccess}
-      />
-    )
-  }
-
-  // Render public pages
   return (
-    <div className="min-h-screen animated-gradient">
-      {/* Header with navigation */}
-      <Header 
-        activeTab={currentPage} 
-        setActiveTab={navigateTo}
-        onLogin={handleLogin}
-      />
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/" element={
+        <PublicLayout>
+          <HomePage />
+        </PublicLayout>
+      } />
+      
+      <Route path="/features" element={
+        <PublicLayout>
+          <FeaturesPage />
+        </PublicLayout>
+      } />
+      
+      <Route path="/about" element={
+        <PublicLayout>
+          <AboutPage />
+        </PublicLayout>
+      } />
+      
+      <Route path="/contact" element={
+        <PublicLayout>
+          <ContactPage />
+        </PublicLayout>
+      } />
 
-      {/* Main content area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {currentPage === 'home' && <HomePage />}
-        {currentPage === 'features' && <FeaturesPage />}
-        {currentPage === 'about' && <AboutPage />}
-        {currentPage === 'contact' && <ContactPage />}
-      </main>
+      {/* Auth Routes */}
+      <Route path="/login" element={
+        <LoginPage 
+          onBack={handleBackToHome} 
+          onLoginSuccess={handleLoginSuccess}
+        />
+      } />
 
-      {/* Footer */}
-      <Footer />
-    </div>
+      <Route path="/setup-account" element={
+        <AccountSetupPage 
+          onSetupSuccess={handleSetupSuccess}
+          onBack={handleBackToHome}
+        />
+      } />
+
+      {/* Protected Routes - UNCHANGED Dashboard usage */}
+      <Route path="/dashboard" element={
+        isAuthenticated ? <Dashboard /> : <LoginPage onBack={handleBackToHome} onLoginSuccess={handleLoginSuccess} />
+      } />
+
+      {/* Catch all route - redirect to home */}
+      <Route path="*" element={
+        <PublicLayout>
+          <HomePage />
+        </PublicLayout>
+      } />
+    </Routes>
   )
 }
 
