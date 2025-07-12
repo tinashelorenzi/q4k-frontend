@@ -1,9 +1,10 @@
-import { useState } from 'react'
+// src/App.jsx - Updated to include account setup functionality
+import { useState, useEffect } from 'react'
 
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext'
 
-// Components
+// Import your existing components
 import Header from './components/Header'
 import Footer from './components/Footer'
 
@@ -13,7 +14,8 @@ import FeaturesPage from './pages/FeaturesPage'
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import LoginPage from './pages/LoginPage'
-import Dashboard from './pages/Dashboard'
+import Dashboard from './pages/Dashboard' // Your existing Dashboard that uses TutorDashboard component
+import AccountSetupPage from './pages/AccountSetupPage' // New import
 
 // Loading component
 const LoadingScreen = () => (
@@ -33,11 +35,29 @@ const AppContent = () => {
   const { isAuthenticated, isLoading } = useAuth()
   const [currentPage, setCurrentPage] = useState('home')
   
+  // Check for setup token on app load
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const token = urlParams.get('token')
+    
+    // If there's a token in URL, show account setup page
+    if (token && window.location.pathname === '/setup-account') {
+      setCurrentPage('setup-account')
+    }
+  }, [])
+  
   // Handle page navigation (ready for React Router replacement)
   const navigateTo = (page) => {
     setCurrentPage(page)
     // Scroll to top when navigating
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    
+    // Update URL for setup page
+    if (page === 'setup-account') {
+      window.history.pushState({}, '', '/setup-account' + window.location.search)
+    } else {
+      window.history.pushState({}, '', '/')
+    }
   }
 
   // Handle login flow
@@ -47,6 +67,7 @@ const AppContent = () => {
 
   const handleBackToHome = () => {
     setCurrentPage('home')
+    window.history.pushState({}, '', '/')
   }
 
   const handleLoginSuccess = (userData) => {
@@ -55,9 +76,26 @@ const AppContent = () => {
     // We can add additional logic here if needed
   }
 
+  // Handle successful account setup
+  const handleSetupSuccess = () => {
+    // After successful setup, the user is automatically logged in
+    // The auth context will handle the state change
+    console.log('Account setup successful')
+  }
+
   // Show loading screen while auth is initializing
   if (isLoading) {
     return <LoadingScreen />
+  }
+
+  // Show account setup page if on setup route (regardless of auth status)
+  if (currentPage === 'setup-account') {
+    return (
+      <AccountSetupPage 
+        onSetupSuccess={handleSetupSuccess}
+        onBack={handleBackToHome}
+      />
+    )
   }
 
   // Show dashboard if user is authenticated

@@ -1,62 +1,92 @@
+// src/components/Header.jsx
 import { useState } from 'react'
+import { useAuth } from '../context/AuthContext'
 
 const Header = ({ activeTab, setActiveTab, onLogin }) => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { isAuthenticated, logout } = useAuth()
 
-  const navItems = ['home', 'features', 'about', 'contact']
+  const navigation = [
+    { name: 'Home', path: 'home' },
+    { name: 'Features', path: 'features' },
+    { name: 'About', path: 'about' },
+    { name: 'Contact', path: 'contact' },
+  ]
+
+  const handleLogout = () => {
+    logout()
+    setActiveTab('home')
+  }
+
+  const isActivePath = (path) => {
+    return activeTab === path
+  }
 
   return (
-    <header className="header-blur">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="bg-white/10 backdrop-blur-md border-b border-white/20 sticky top-0 z-50">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
           {/* Logo */}
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/25">
-              <span className="text-white font-bold text-xl">Q4K</span>
+          <button onClick={() => setActiveTab('home')} className="flex items-center">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-lg flex items-center justify-center mr-3 shadow-lg shadow-purple-500/25">
+              <span className="text-white font-bold text-lg">Q4K</span>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">Quest4Knowledge</h1>
-              <p className="text-sm text-white/60">Management Portal</p>
+            <div className="hidden sm:block">
+              <h1 className="text-xl font-bold text-white">Quest4Knowledge</h1>
+              <p className="text-white/60 text-sm">Learning Management Platform</p>
             </div>
-          </div>
+          </button>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-4">
-            <nav className="flex space-x-6">
-              {navItems.map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={activeTab === tab ? 'nav-item-active' : 'nav-item-inactive'}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
-            </nav>
-            
-            <div className="flex space-x-3 ml-6">
-              <a 
-                href="https://quest4knowledge.co.za" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="btn-ghost text-sm"
+          <div className="hidden md:flex items-center space-x-8">
+            {navigation.map((item) => (
+              <button
+                key={item.name}
+                onClick={() => setActiveTab(item.path)}
+                className={`text-white/80 hover:text-white transition-colors duration-300 font-medium ${
+                  isActivePath(item.path) ? 'text-white border-b-2 border-blue-400' : ''
+                }`}
               >
-                Main Site
-              </a>
-              <button onClick={onLogin} className="btn-primary text-sm">
-                Login
+                {item.name}
               </button>
-            </div>
+            ))}
           </div>
 
-          {/* Mobile menu button */}
-          <div className="lg:hidden">
+          {/* Auth Buttons */}
+          <div className="hidden md:flex items-center space-x-4">
+            {isAuthenticated ? (
+              <>
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className="text-white/80 hover:text-white transition-colors duration-300 font-medium"
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="bg-red-500/20 text-red-300 px-4 py-2 rounded-lg hover:bg-red-500/30 transition-all duration-300"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={onLogin}
+                className="bg-white/10 text-white px-6 py-2 rounded-lg hover:bg-white/20 transition-all duration-300 font-medium border border-white/20"
+              >
+                Login
+              </button>
+            )}
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden">
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {isMobileMenuOpen ? (
+                {isMenuOpen ? (
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 ) : (
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -66,44 +96,63 @@ const Header = ({ activeTab, setActiveTab, onLogin }) => {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
-        {isMobileMenuOpen && (
-          <div className="lg:hidden pb-4 border-t border-white/10 mt-4 pt-4">
-            <nav className="flex flex-col space-y-2">
-              {navItems.map((tab) => (
+        {/* Mobile Menu */}
+        {isMenuOpen && (
+          <div className="md:hidden border-t border-white/20 py-4">
+            <div className="flex flex-col space-y-4">
+              {navigation.map((item) => (
                 <button
-                  key={tab}
+                  key={item.name}
                   onClick={() => {
-                    setActiveTab(tab)
-                    setIsMobileMenuOpen(false)
+                    setActiveTab(item.path)
+                    setIsMenuOpen(false)
                   }}
-                  className={`text-left px-4 py-3 rounded-lg transition-all duration-300 ${
-                    activeTab === tab
-                      ? 'bg-white/20 text-white'
-                      : 'text-white/70 hover:text-white hover:bg-white/10'
+                  className={`text-white/80 hover:text-white transition-colors duration-300 font-medium px-2 py-1 ${
+                    isActivePath(item.path) ? 'text-white bg-white/10 rounded' : ''
                   }`}
                 >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {item.name}
                 </button>
               ))}
               
-              <div className="flex flex-col space-y-2 pt-4 border-t border-white/10 mt-4">
-                <a 
-                  href="https://quest4knowledge.co.za" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="btn-ghost text-center"
-                >
-                  Visit Main Site
-                </a>
-                <button onClick={onLogin} className="btn-primary">
-                  Access Portal
-                </button>
+              <div className="border-t border-white/20 pt-4">
+                {isAuthenticated ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setActiveTab('dashboard')
+                        setIsMenuOpen(false)
+                      }}
+                      className="block w-full text-left text-white/80 hover:text-white transition-colors duration-300 font-medium px-2 py-1 mb-2"
+                    >
+                      Dashboard
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleLogout()
+                        setIsMenuOpen(false)
+                      }}
+                      className="block w-full text-left bg-red-500/20 text-red-300 px-4 py-2 rounded-lg hover:bg-red-500/30 transition-all duration-300"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => {
+                      onLogin()
+                      setIsMenuOpen(false)
+                    }}
+                    className="block w-full bg-white/10 text-white px-6 py-2 rounded-lg hover:bg-white/20 transition-all duration-300 font-medium border border-white/20 text-center"
+                  >
+                    Login
+                  </button>
+                )}
               </div>
-            </nav>
+            </div>
           </div>
         )}
-      </div>
+      </nav>
     </header>
   )
 }

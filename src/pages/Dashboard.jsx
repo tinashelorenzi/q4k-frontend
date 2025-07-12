@@ -1,175 +1,200 @@
-import { useAuth } from '../context/AuthContext'
-import { useState } from 'react'
-import { Overview, Sessions, Progress, Profile, TutorDashboard, MyGigs, TutorSessions, TutorSettings } from '../components/dashboard'
+// src/pages/Dashboard.jsx
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 const Dashboard = () => {
-  const { user, tutorProfile, logout, isAdmin, isTutor, isManager } = useAuth()
-  const [activeTab, setActiveTab] = useState('dashboard')
+  const navigate = useNavigate()
+  const [userData, setUserData] = useState(null)
+  const [tutorData, setTutorData] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  const handleLogout = async () => {
-    try {
-      await logout()
-    } catch (error) {
-      console.error('Logout error:', error)
+  useEffect(() => {
+    // Load user data from localStorage
+    const storedUserData = localStorage.getItem('user_data')
+    const storedTutorData = localStorage.getItem('tutor_data')
+    const accessToken = localStorage.getItem('access_token')
+
+    if (!accessToken) {
+      // No token found, redirect to login
+      navigate('/login')
+      return
     }
-  }
 
-  const getDashboardGreeting = () => {
-    const hour = new Date().getHours()
-    if (hour < 12) return 'Good morning'
-    if (hour < 17) return 'Good afternoon'
-    return 'Good evening'
-  }
-
-  const getUserRoleDisplay = () => {
-    switch (user?.user_type) {
-      case 'admin': return 'System Administrator'
-      case 'manager': return 'Manager'
-      case 'tutor': return 'Tutor'
-      case 'staff': return 'Staff Member'
-      default: return 'User'
+    if (storedUserData && storedTutorData) {
+      setUserData(JSON.parse(storedUserData))
+      setTutorData(JSON.parse(storedTutorData))
     }
+
+    setLoading(false)
+  }, [navigate])
+
+  const handleLogout = () => {
+    // Clear all stored data
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('user_data')
+    localStorage.removeItem('tutor_data')
+    
+    // Redirect to home
+    navigate('/')
   }
 
-  const getRoleColor = () => {
-    switch (user?.user_type) {
-      case 'admin': return 'from-red-500 to-pink-500'
-      case 'manager': return 'from-blue-500 to-cyan-500'
-      case 'tutor': return 'from-green-500 to-teal-500'
-      case 'staff': return 'from-purple-500 to-indigo-500'
-      default: return 'from-gray-500 to-gray-600'
-    }
+  if (loading) {
+    return (
+      <div className="min-h-screen animated-gradient flex items-center justify-center">
+        <div className="glass-card p-8 max-w-md w-full mx-4 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-white mb-2">Loading Dashboard</h2>
+          <p className="text-white/70">Please wait...</p>
+        </div>
+      </div>
+    )
   }
-
-  // Different tabs for tutors vs regular users
-  const tabs = isTutor() ? [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'gigs', label: 'My Gigs', icon: '📚' },
-    { id: 'sessions', label: 'Sessions', icon: '⏰' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' }
-  ] : [
-    { id: 'overview', label: 'Overview', icon: '📊' },
-    { id: 'sessions', label: 'Sessions', icon: '📚' },
-    { id: 'progress', label: 'Progress', icon: '📈' },
-    { id: 'profile', label: 'Profile', icon: '👤' }
-  ]
 
   return (
     <div className="min-h-screen animated-gradient">
-      {/* Mobile-First Header */}
-      <header className="header-blur sticky top-0 z-50">
-        <div className="px-4 py-3 sm:px-6">
-          <div className="flex items-center justify-between">
-            {/* Logo and Brand - Compact on mobile */}
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/25">
-                <span className="text-white font-bold text-sm sm:text-base">Q4K</span>
+      {/* Header */}
+      <header className="bg-white/10 backdrop-blur-md border-b border-white/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-lg flex items-center justify-center mr-3">
+                <span className="text-white font-bold text-lg">Q4K</span>
               </div>
-              <div className="hidden sm:block">
-                <h1 className="text-lg sm:text-xl font-bold text-white">Quest4Knowledge</h1>
-                <p className="text-xs text-white/60">Learning Portal</p>
-              </div>
-              <div className="sm:hidden">
-                <h1 className="text-sm font-bold text-white">Q4K Portal</h1>
+              <div>
+                <h1 className="text-xl font-bold text-white">Quest4Knowledge</h1>
+                <p className="text-white/60 text-sm">Tutor Portal</p>
               </div>
             </div>
             
-            {/* User Info and Logout - Mobile optimized */}
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-white text-xs sm:text-sm font-medium">
-                  {user?.first_name || user?.username}
-                </p>
-                <p className="text-white/60 text-xs hidden sm:block">{getUserRoleDisplay()}</p>
+                <p className="text-white font-medium">{userData?.first_name} {userData?.last_name}</p>
+                <p className="text-white/60 text-sm">{tutorData?.tutor_id}</p>
               </div>
-              <button 
+              <button
                 onClick={handleLogout}
-                className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg transition-colors"
-                title="Logout"
+                className="bg-red-500/20 text-red-300 px-4 py-2 rounded-lg hover:bg-red-500/30 transition-colors"
               >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
+                Logout
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Welcome Section - Mobile optimized */}
-      <section className="px-4 py-4 sm:px-6 sm:py-6">
-        <div className="glass-card p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-white">
-                {getDashboardGreeting()}, {user?.first_name || user?.username}! 👋
-              </h2>
-              <p className="text-white/70 text-sm sm:text-base">
-                {isTutor() ? 'Ready to help students learn?' : 'Ready to continue your learning journey?'}
-              </p>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Section */}
+        <div className="glass-card p-6 mb-8">
+          <h2 className="text-2xl font-bold text-white mb-2">
+            Welcome, {userData?.first_name}! 🎉
+          </h2>
+          <p className="text-white/80">
+            Your tutor account has been successfully created. You can now start managing your tutoring activities.
+          </p>
+        </div>
+
+        {/* Account Information */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <div className="glass-card p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Account Information</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-white/60 text-sm">Full Name</label>
+                <p className="text-white font-medium">{userData?.first_name} {userData?.last_name}</p>
+              </div>
+              <div>
+                <label className="text-white/60 text-sm">Email</label>
+                <p className="text-white font-medium">{userData?.email}</p>
+              </div>
+              <div>
+                <label className="text-white/60 text-sm">User Type</label>
+                <p className="text-white font-medium capitalize">{userData?.user_type}</p>
+              </div>
             </div>
-            <div className={`px-3 py-1 rounded-full bg-gradient-to-r ${getRoleColor()} text-white text-xs sm:text-sm font-medium`}>
-              {getUserRoleDisplay()}
+          </div>
+
+          <div className="glass-card p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Tutor Information</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-white/60 text-sm">Tutor ID</label>
+                <p className="text-white font-medium">{tutorData?.tutor_id}</p>
+              </div>
+              <div>
+                <label className="text-white/60 text-sm">Full Name</label>
+                <p className="text-white font-medium">{tutorData?.full_name}</p>
+              </div>
+              <div>
+                <label className="text-white/60 text-sm">Status</label>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-300">
+                  Active
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </section>
 
-      {/* Mobile Tab Navigation */}
-      <nav className="px-4 sm:px-6 mb-4">
-        <div className="flex space-x-1 bg-white/5 p-1 rounded-xl backdrop-blur-sm">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-2 py-2 px-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
-                activeTab === tab.id
-                  ? 'bg-white/20 text-white'
-                  : 'text-white/70 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              <span className="text-base sm:text-sm">{tab.icon}</span>
-              <span className="hidden sm:inline">{tab.label}</span>
-              <span className="sm:hidden text-xs">{tab.label}</span>
+        {/* Quick Actions */}
+        <div className="glass-card p-6 mb-8">
+          <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <button className="bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg p-4 text-center transition-all duration-300">
+              <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center mx-auto mb-2">
+                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <p className="text-white font-medium text-sm">Update Profile</p>
             </button>
-          ))}
-        </div>
-      </nav>
 
-      {/* Main Content Area */}
-      <main className="px-4 sm:px-6 pb-6 space-y-4 sm:space-y-6">
-        
-        {/* Tutor-specific tabs */}
-        {isTutor() ? (
-          <>
-            {activeTab === 'dashboard' && <TutorDashboard />}
-            {activeTab === 'gigs' && <MyGigs />}
-            {activeTab === 'sessions' && <TutorSessions />}
-            {activeTab === 'settings' && <TutorSettings />}
-          </>
-        ) : (
-          <>
-            {/* Regular user tabs */}
-            {activeTab === 'overview' && <Overview />}
-            {activeTab === 'sessions' && <Sessions />}
-            {activeTab === 'progress' && <Progress />}
-            {activeTab === 'profile' && <Profile />}
-          </>
-        )}
+            <button className="bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg p-4 text-center transition-all duration-300">
+              <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center mx-auto mb-2">
+                <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </div>
+              <p className="text-white font-medium text-sm">New Session</p>
+            </button>
 
-      </main>
+            <button className="bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg p-4 text-center transition-all duration-300">
+              <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center mx-auto mb-2">
+                <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <p className="text-white font-medium text-sm">View Sessions</p>
+            </button>
 
-      {/* Development Notice */}
-      {import.meta.env.DEV && (
-        <div className="px-4 sm:px-6 pb-6">
-          <div className="glass-card p-4 border-l-4 border-blue-500">
-            <h3 className="text-sm sm:text-base font-semibold text-white mb-2">🔧 Development Mode</h3>
-            <p className="text-white/80 text-xs sm:text-sm">
-              This is a development build. Additional features are being added continuously.
-            </p>
+            <button className="bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg p-4 text-center transition-all duration-300">
+              <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center mx-auto mb-2">
+                <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <p className="text-white font-medium text-sm">Analytics</p>
+            </button>
           </div>
         </div>
-      )}
+
+        {/* Recent Activity */}
+        <div className="glass-card p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+            </div>
+            <h4 className="text-white font-medium mb-2">No activity yet</h4>
+            <p className="text-white/60 text-sm mb-4">Start by updating your profile or creating your first tutoring session.</p>
+            <button className="btn-primary">
+              Get Started
+            </button>
+          </div>
+        </div>
+      </main>
     </div>
   )
 }
