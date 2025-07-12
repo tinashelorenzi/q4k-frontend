@@ -392,6 +392,118 @@ class ApiService {
     }).toString()
     return await this.apiCall(`/search/sessions/?${searchParams}`)
   }
+
+  // User Profile Management
+  async getUserProfile() {
+    return await this.apiCall('/auth/profile/')
+  }
+
+  async updateUserProfile(profileData) {
+    return await this.apiCall('/auth/profile/update/', {
+      method: 'PUT',
+      body: JSON.stringify(profileData)
+    })
+  }
+
+  async partialUpdateUserProfile(profileData) {
+    return await this.apiCall('/auth/profile/update/', {
+      method: 'PATCH',
+      body: JSON.stringify(profileData)
+    })
+  }
+
+  // Password Management
+  async changePassword(passwordData) {
+    const { currentPassword, newPassword, confirmPassword } = passwordData
+    return await this.apiCall('/auth/change-password/', {
+      method: 'POST',
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+        confirm_password: confirmPassword
+      })
+    })
+  }
+
+  async requestPasswordReset(email) {
+    return await this.apiCall('/auth/password-reset/', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    })
+  }
+
+  // Account Settings
+  async getUserSettings() {
+    return await this.apiCall('/auth/settings/')
+  }
+
+  async updateUserSettings(settingsData) {
+    return await this.apiCall('/auth/settings/', {
+      method: 'PUT',
+      body: JSON.stringify(settingsData)
+    })
+  }
+
+  async partialUpdateUserSettings(settingsData) {
+    return await this.apiCall('/auth/settings/', {
+      method: 'PATCH',
+      body: JSON.stringify(settingsData)
+    })
+  }
+
+  // Account Management
+  async deactivateAccount(password) {
+    return await this.apiCall('/auth/deactivate/', {
+      method: 'POST',
+      body: JSON.stringify({ password })
+    })
+  }
+
+  // Tutor Profile Management (already exists, but adding for completeness)
+  async getMyTutorProfile() {
+    return await this.apiCall('/tutors/my-profile/')
+  }
+
+  async updateMyTutorProfile(profileData) {
+    return await this.apiCall('/tutors/my-profile/', {
+      method: 'PUT',
+      body: JSON.stringify(profileData)
+    })
+  }
+
+  async partialUpdateMyTutorProfile(profileData) {
+    return await this.apiCall('/tutors/my-profile/', {
+      method: 'PATCH',
+      body: JSON.stringify(profileData)
+    })
+  }
+
+  async getMyTutorInfo() {
+    return await this.apiCall('/tutors/my-info/')
+  }
+
+  async updateMyTutorInfo(tutorData) {
+    return await this.apiCall('/tutors/my-info/', {
+      method: 'PUT',
+      body: JSON.stringify(tutorData)
+    })
+  }
+
+  // Profile Avatar/Image Upload (if you plan to add this)
+  async uploadProfileImage(imageFile) {
+    const formData = new FormData()
+    formData.append('profile_image', imageFile)
+    
+    return await this.apiCall('/auth/profile/image/', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        // Remove Content-Type to let browser set it with boundary for FormData
+        ...this.getAuthHeaders(),
+        'Content-Type': undefined
+      }
+    })
+  }
 }
 
 // Create and export a singleton instance
