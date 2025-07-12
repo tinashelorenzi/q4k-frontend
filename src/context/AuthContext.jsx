@@ -135,7 +135,7 @@ export const AuthProvider = ({ children }) => {
 
   // Get tutor ID for API calls
   const getTutorId = () => {
-    return tutor?.id || user?.id
+    return tutor?.tutor_id || user?.id
   }
 
   // Context value

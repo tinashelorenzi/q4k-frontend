@@ -48,7 +48,7 @@ const Dashboard = () => {
                 <p className="text-white font-medium">
                   {user?.first_name} {user?.last_name}
                 </p>
-                <p className="text-white/60 text-sm">{tutorProfile?.tutor_id || user?.id}</p>
+                <p className="text-white/60 text-sm">{tutor?.tutor_id || user?.id}</p>
               </div>
               <button
                 onClick={handleLogout}

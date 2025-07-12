@@ -9,6 +9,13 @@ const Header = ({ activeTab, setActiveTab, onLogin }) => {
   // Format tutor ID with TUT- prefix and 4-digit padding
   const formatTutorId = (id) => {
     if (!id) return ''
+    
+    // If it already includes TUT, return as is
+    if (String(id).includes('TUT')) {
+      return id
+    }
+    
+    // Otherwise format it
     const numericId = parseInt(id, 10)
     if (isNaN(numericId)) return id
     return `TUT-${numericId.toString().padStart(4, '0')}`
@@ -69,7 +76,7 @@ const Header = ({ activeTab, setActiveTab, onLogin }) => {
                     {user?.first_name} {user?.last_name}
                   </p>
                   <p className="text-white/60 text-xs">
-                    {formatTutorId(tutorProfile?.tutor_id || user?.id)}
+                  {formatTutorId(tutor?.tutor_id || user?.id)}
                   </p>
                 </div>
                 <button
