@@ -1,7 +1,6 @@
-// src/pages/Dashboard.jsx - Minimal fix: just remove auth redirect logic
+// src/pages/Dashboard.jsx - Fixed to use TutorDashboard component
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-// Keep your existing import - this is the important part!
 import { TutorDashboard } from '../components/dashboard'
 
 const Dashboard = () => {
@@ -46,7 +45,6 @@ const Dashboard = () => {
     )
   }
 
-  // Use your existing TutorDashboard component - UNCHANGED!
   return (
     <div className="min-h-screen animated-gradient">
       {/* Header */}
@@ -80,7 +78,7 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* Your existing TutorDashboard component */}
+      {/* Main Dashboard Content - NOW USING TutorDashboard COMPONENT */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <TutorDashboard />
       </main>
