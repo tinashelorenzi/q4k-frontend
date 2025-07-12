@@ -3,14 +3,13 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/dist/', // This is crucial - must match the htaccess redirect
+  base: '/', // Changed from '/dist/' to '/'
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
     rollupOptions: {
       output: {
         manualChunks: undefined,
-        // Ensure proper file extensions
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]'
