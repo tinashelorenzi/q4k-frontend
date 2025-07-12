@@ -5,7 +5,7 @@ import { TutorDashboard } from '../components/dashboard'
 
 
 const Dashboard = () => {
-  const { user, tutorProfile, logout, tutor } = useAuth()
+  const { user, tutorProfile, logout, tutor, getFormattedTutorId } = useAuth()
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -49,7 +49,7 @@ const Dashboard = () => {
                 <p className="text-white font-medium">
                   {user?.first_name} {user?.last_name}
                 </p>
-                <p className="text-white/60 text-sm">{tutor?.tutor_id || user?.id}</p>
+                <p className="text-white/60 text-sm">{getFormattedTutorId()}</p>
               </div>
               <button
                 onClick={handleLogout}

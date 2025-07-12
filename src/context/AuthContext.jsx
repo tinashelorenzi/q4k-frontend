@@ -135,10 +135,15 @@ export const AuthProvider = ({ children }) => {
 
   // Get tutor ID for API calls
   const getTutorId = () => {
-    return tutor?.tutor_id || user?.id
+    return tutor?.id || user?.id  // Returns numeric ID like 1
   }
 
-  
+  const getFormattedTutorId = () => {
+    // For display purposes, return the formatted tutor_id
+    return tutor?.tutor_id || `TUT-${String(user?.id).padStart(3, '0')}`
+  }
+
+
   // Context value
   const value = {
     // State
@@ -161,7 +166,8 @@ export const AuthProvider = ({ children }) => {
     isTutor,
     isManager,
     isStaff,
-    getTutorId,
+    getTutorId,          // Returns numeric ID for API calls
+    getFormattedTutorId, // Returns formatted ID for display
     
     // Re-initialize auth (useful for token refresh scenarios)
     initializeAuth

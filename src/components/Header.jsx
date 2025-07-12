@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 
 const Header = ({ activeTab, setActiveTab, onLogin }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { isAuthenticated, logout, user, tutorProfile, tutor } = useAuth()
+  const { isAuthenticated, logout, user, tutorProfile, tutor, getFormattedTutorId } = useAuth()
 
   // Format tutor ID with TUT- prefix and 4-digit padding
   const formatTutorId = (id) => {
@@ -76,7 +76,7 @@ const Header = ({ activeTab, setActiveTab, onLogin }) => {
                     {user?.first_name} {user?.last_name}
                   </p>
                   <p className="text-white/60 text-xs">
-                  {formatTutorId(tutor?.tutor_id || user?.id)}
+                  {getFormattedTutorId()}
                   </p>
                 </div>
                 <button

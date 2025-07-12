@@ -8,7 +8,7 @@ import TutorSessions from './TutorSessions'
 import TutorSettings from './TutorSettings'
 
 const TutorDashboard = () => {
-  const { user, tutorProfile, tutor } = useAuth()
+  const { user, tutorProfile, tutor, getFormattedTutorId } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(false)
 
@@ -72,7 +72,7 @@ const TutorDashboard = () => {
               Welcome back, {user?.first_name || 'Tutor'}! 👋
             </h1>
             <p className="text-white/70">
-            Tutor ID: {tutor?.tutor_id || user?.id} • Ready to inspire minds today?
+            Tutor ID: {getFormattedTutorId()} • Ready to inspire minds today?
             </p>
           </div>
           <div className="mt-4 sm:mt-0">
