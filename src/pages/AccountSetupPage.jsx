@@ -1,4 +1,4 @@
-// src/pages/AccountSetupPage.jsx
+// src/pages/AccountSetupPage.jsx - Fixed with correct API URLs
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 
@@ -40,16 +40,32 @@ const AccountSetupPage = () => {
     verifyToken()
   }, [token])
 
-  // Verify the setup token
+  // Verify the setup token - FIXED URL PATH
   const verifyToken = async () => {
     try {
       setLoading(true)
       setError('')
 
-      const response = await fetch(`${API_BASE_URL}/api/users/verify-token/?token=${token}`)
-      const data = await response.json()
+      // CORRECTED: Use /api/auth/ instead of /api/users/
+      const url = `${API_BASE_URL}/api/auth/verify-token/?token=${token}`
+      console.log('🔍 Verifying token at:', url)
 
-      if (response.ok && data.valid) {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      console.log('✅ Token verification response:', data)
+
+      if (data.valid) {
         setTokenData(data)
         setStep(2) // Move to setup form
       } else {
@@ -109,7 +125,7 @@ const AccountSetupPage = () => {
     return Object.keys(errors).length === 0
   }
 
-  // Submit account setup
+  // Submit account setup - FIXED URL PATH
   const handleSubmit = async (e) => {
     e.preventDefault()
     
@@ -121,7 +137,11 @@ const AccountSetupPage = () => {
       setLoading(true)
       setError('')
 
-      const response = await fetch(`${API_BASE_URL}/api/users/complete-setup/`, {
+      // CORRECTED: Use /api/auth/ instead of /api/users/
+      const url = `${API_BASE_URL}/api/auth/complete-setup/`
+      console.log('🚀 Completing setup at:', url)
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,64 +155,55 @@ const AccountSetupPage = () => {
         })
       })
 
-      const data = await response.json()
-
-      if (response.ok) {
-        // Store tokens in localStorage
-        localStorage.setItem('access_token', data.tokens.access)
-        localStorage.setItem('refresh_token', data.tokens.refresh)
-        localStorage.setItem('user_data', JSON.stringify(data.user))
-        localStorage.setItem('tutor_data', JSON.stringify(data.tutor))
-        
-        setStep(3) // Move to success step
-        
-        // Redirect to dashboard after 3 seconds
-        setTimeout(() => {
-          navigate('/dashboard')
-        }, 3000)
-      } else {
-        if (data.error) {
-          setError(data.error)
-        } else if (data.password) {
-          setFormErrors({ password: data.password.join(', ') })
-        } else {
-          setError('Account setup failed. Please try again.')
-        }
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
+
+      const data = await response.json()
+      console.log('✅ Setup completion response:', data)
+
+      // Store tokens in localStorage
+      localStorage.setItem('access_token', data.tokens.access)
+      localStorage.setItem('refresh_token', data.tokens.refresh)
+      localStorage.setItem('user_data', JSON.stringify(data.user))
+      localStorage.setItem('tutor_data', JSON.stringify(data.tutor))
+      
+      setStep(3) // Move to success step
+      
+      // Redirect to dashboard after 3 seconds
+      setTimeout(() => {
+        navigate('/dashboard')
+      }, 3000)
+
     } catch (err) {
       console.error('Setup error:', err)
-      setError('Failed to complete setup. Please check your connection and try again.')
+      if (err.message.includes('400')) {
+        setError('Please check your input and try again.')
+      } else if (err.message.includes('500')) {
+        setError('Server error. Please try again later.')
+      } else {
+        setError('Failed to complete setup. Please check your connection and try again.')
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  // Loading step
-  if (step === 1 && loading) {
+  // Loading screen
+  if (loading && step === 1) {
     return (
       <div className="min-h-screen animated-gradient flex items-center justify-center">
         <div className="glass-card p-8 max-w-md w-full mx-4 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold text-white mb-2">Verifying Setup Link</h2>
-          <p className="text-white/70">Please wait while we validate your invitation...</p>
+          <p className="text-white/70">Please wait while we verify your invitation...</p>
         </div>
       </div>
     )
   }
 
-  // Error step
-  if (error && step < 3) {
+  // Error screen
+  if (error && step === 1) {
     return (
       <div className="min-h-screen animated-gradient flex items-center justify-center">
         <div className="glass-card p-8 max-w-md w-full mx-4 text-center">
@@ -202,19 +213,19 @@ const AccountSetupPage = () => {
             </svg>
           </div>
           <h2 className="text-xl font-semibold text-white mb-2">Setup Link Issue</h2>
-          <p className="text-red-300 mb-6">{error}</p>
+          <p className="text-white/70 mb-6">{error}</p>
           <button
-            onClick={() => window.location.href = '/'}
-            className="btn-primary w-full"
+            onClick={() => navigate('/')}
+            className="btn-primary"
           >
-            Go to Homepage
+            Return to Home
           </button>
         </div>
       </div>
     )
   }
 
-  // Success step
+  // Success screen
   if (step === 3) {
     return (
       <div className="min-h-screen animated-gradient flex items-center justify-center">
@@ -224,135 +235,89 @@ const AccountSetupPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Welcome to Quest4Knowledge!</h2>
-          <p className="text-white/80 mb-2">Your tutor account has been created successfully.</p>
-          <p className="text-white/60 text-sm mb-6">Redirecting to your dashboard...</p>
-          
-          <div className="bg-white/10 rounded-lg p-4 mb-6">
-            <h3 className="font-semibold text-white mb-2">Account Details</h3>
-            <div className="text-left text-white/80 text-sm space-y-1">
-              <p><span className="font-medium">Name:</span> {tokenData?.first_name} {tokenData?.last_name}</p>
-              <p><span className="font-medium">Tutor ID:</span> {tokenData?.tutor_id}</p>
-              <p><span className="font-medium">Email:</span> {tokenData?.email}</p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="btn-primary w-full"
-          >
-            Go to Dashboard
-          </button>
+          <h2 className="text-xl font-semibold text-white mb-2">Account Setup Complete!</h2>
+          <p className="text-white/70 mb-6">
+            Welcome to Quest4Knowledge! You'll be redirected to your dashboard shortly.
+          </p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
         </div>
       </div>
     )
   }
 
-  // Setup form step
+  // Setup form (step 2)
   return (
     <div className="min-h-screen animated-gradient flex items-center justify-center py-12">
       <div className="glass-card p-8 max-w-md w-full mx-4">
+        {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/25">
             <span className="text-white font-bold text-2xl">Q4K</span>
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Complete Your Setup</h2>
-          <p className="text-white/60">Create your tutor account password</p>
+          <p className="text-white/70 mb-4">
+            Welcome {tokenData?.first_name}! Please set up your account to get started.
+          </p>
         </div>
-
-        {/* User Information Display */}
-        {tokenData && (
-          <div className="bg-white/10 rounded-lg p-4 mb-6">
-            <h3 className="font-semibold text-white mb-2">Your Information</h3>
-            <div className="text-white/80 text-sm space-y-1">
-              <p><span className="font-medium">Name:</span> {tokenData.first_name} {tokenData.last_name}</p>
-              <p><span className="font-medium">Tutor ID:</span> {tokenData.tutor_id}</p>
-              <p><span className="font-medium">Email:</span> {tokenData.email}</p>
-              <p><span className="font-medium">Expires:</span> {formatDate(tokenData.expires_at)}</p>
-            </div>
-          </div>
-        )}
 
         {/* Setup Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Display any general errors */}
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4">
+              <p className="text-red-200 text-sm">{error}</p>
+            </div>
+          )}
+
           {/* Password Field */}
           <div>
-            <label htmlFor="password" className="block text-white font-medium mb-2">
+            <label className="block text-white text-sm font-medium mb-2">
               Password *
             </label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
-                id="password"
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                className={`w-full px-4 py-3 pr-12 bg-white/10 border rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ${
-                  formErrors.password ? 'border-red-500' : 'border-white/20'
-                }`}
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="Enter a secure password"
                 required
-                disabled={loading}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white transition-colors"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white"
               >
-                {showPassword ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                )}
+                {showPassword ? '👁️' : '👁️‍🗨️'}
               </button>
             </div>
             {formErrors.password && (
               <p className="text-red-400 text-sm mt-1">{formErrors.password}</p>
             )}
-            <p className="text-white/50 text-xs mt-1">
-              Must be 8+ characters with uppercase, lowercase, and number
-            </p>
           </div>
 
           {/* Confirm Password Field */}
           <div>
-            <label htmlFor="confirmPassword" className="block text-white font-medium mb-2">
+            <label className="block text-white text-sm font-medium mb-2">
               Confirm Password *
             </label>
             <div className="relative">
               <input
                 type={showConfirmPassword ? 'text' : 'password'}
-                id="confirmPassword"
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
-                className={`w-full px-4 py-3 pr-12 bg-white/10 border rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ${
-                  formErrors.confirmPassword ? 'border-red-500' : 'border-white/20'
-                }`}
+                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="Confirm your password"
                 required
-                disabled={loading}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white transition-colors"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white"
               >
-                {showConfirmPassword ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                )}
+                {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
               </button>
             </div>
             {formErrors.confirmPassword && (
@@ -362,20 +327,16 @@ const AccountSetupPage = () => {
 
           {/* Phone Number Field */}
           <div>
-            <label htmlFor="phoneNumber" className="block text-white font-medium mb-2">
-              Phone Number (Optional)
+            <label className="block text-white text-sm font-medium mb-2">
+              Phone Number
             </label>
             <input
               type="tel"
-              id="phoneNumber"
               name="phoneNumber"
               value={formData.phoneNumber}
               onChange={handleInputChange}
-              className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ${
-                formErrors.phoneNumber ? 'border-red-500' : 'border-white/20'
-              }`}
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               placeholder="+27 123 456 7890"
-              disabled={loading}
             />
             {formErrors.phoneNumber && (
               <p className="text-red-400 text-sm mt-1">{formErrors.phoneNumber}</p>
@@ -384,53 +345,37 @@ const AccountSetupPage = () => {
 
           {/* Physical Address Field */}
           <div>
-            <label htmlFor="physicalAddress" className="block text-white font-medium mb-2">
-              Physical Address (Optional)
+            <label className="block text-white text-sm font-medium mb-2">
+              Physical Address
             </label>
             <textarea
-              id="physicalAddress"
               name="physicalAddress"
               value={formData.physicalAddress}
               onChange={handleInputChange}
-              rows="3"
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 resize-none"
-              placeholder="123 Main Street, City, Province, Postal Code"
-              disabled={loading}
+              rows={3}
+              className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+              placeholder="Your physical address"
             />
           </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-3">
-              <p className="text-red-300 text-sm">{error}</p>
-            </div>
-          )}
 
           {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-full btn-primary py-3 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                Creating Account...
-              </>
-            ) : (
-              'Create My Account'
-            )}
+            {loading ? 'Setting up account...' : 'Complete Setup'}
           </button>
         </form>
 
-        {/* Help Text */}
-        <div className="mt-6 text-center">
-          <p className="text-white/50 text-xs">
-            Need help? Contact support at{' '}
-            <a href="mailto:support@quest4knowledge.com" className="text-blue-400 hover:underline">
-              support@quest4knowledge.com
-            </a>
-          </p>
+        {/* Back to home link */}
+        <div className="text-center mt-6">
+          <button
+            onClick={() => navigate('/')}
+            className="text-white/60 hover:text-white transition-colors text-sm"
+          >
+            Return to Home
+          </button>
         </div>
       </div>
     </div>
