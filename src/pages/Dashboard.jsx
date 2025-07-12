@@ -1,36 +1,19 @@
 // src/pages/Dashboard.jsx - Fixed to use TutorDashboard component
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { TutorDashboard } from '../components/dashboard'
 
 const Dashboard = () => {
-  const navigate = useNavigate()
-  const [userData, setUserData] = useState(null)
-  const [tutorData, setTutorData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const { user, tutorProfile, logout } = useAuth()
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    // Load user data from localStorage
-    const storedUserData = localStorage.getItem('user_data')
-    const storedTutorData = localStorage.getItem('tutor_data')
-
-    if (storedUserData && storedTutorData) {
-      setUserData(JSON.parse(storedUserData))
-      setTutorData(JSON.parse(storedTutorData))
-    }
-
+    // Component is ready to render
     setLoading(false)
   }, [])
 
   const handleLogout = () => {
-    // Clear all stored data
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    localStorage.removeItem('user_data')
-    localStorage.removeItem('tutor_data')
-    
-    // Redirect to home
-    navigate('/')
+    logout()
   }
 
   if (loading) {
@@ -63,9 +46,9 @@ const Dashboard = () => {
             <div className="flex items-center space-x-4">
               <div className="text-right">
                 <p className="text-white font-medium">
-                  {userData?.first_name} {userData?.last_name}
+                  {user?.first_name} {user?.last_name}
                 </p>
-                <p className="text-white/60 text-sm">{tutorData?.tutor_id}</p>
+                <p className="text-white/60 text-sm">{tutorProfile?.tutor_id || user?.id}</p>
               </div>
               <button
                 onClick={handleLogout}
