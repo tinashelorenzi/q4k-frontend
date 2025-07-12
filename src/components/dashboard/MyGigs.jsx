@@ -26,8 +26,40 @@ const MyGigs = () => {
         return
       }
 
+      // Get basic gigs list first
       const response = await apiService.getTutorGigs(tutorId)
-      setGigs(response.results || response || [])
+      const basicGigs = response.results || response || []
+
+      // Get detailed information for each gig to have proper calculations
+      const detailedGigs = await Promise.all(
+        basicGigs.map(async (gig) => {
+          try {
+            const detailedGig = await apiService.getGigDetails(gig.id)
+            return {
+              ...detailedGig,
+              // Use API calculated fields
+              hours_remaining: parseFloat(detailedGig.total_hours_remaining || 0),
+              completion_percentage: parseFloat(detailedGig.completion_percentage || 0),
+              total_earned: parseFloat(detailedGig.hours_completed || 0) * parseFloat(detailedGig.hourly_rate_tutor || 0),
+              potential_earnings: parseFloat(detailedGig.total_tutor_remuneration || 0)
+            }
+          } catch (err) {
+            console.error(`Error loading details for gig ${gig.id}:`, err)
+            // Fallback to basic gig data if details fail
+            return {
+              ...gig,
+              hours_remaining: (gig.total_hours || 0) - (gig.hours_completed || 0),
+              completion_percentage: gig.total_hours > 0 
+                ? ((gig.hours_completed || 0) / gig.total_hours) * 100 
+                : 0,
+              total_earned: (gig.hours_completed || 0) * (gig.hourly_rate_tutor || 0),
+              potential_earnings: (gig.total_hours || 0) * (gig.hourly_rate_tutor || 0)
+            }
+          }
+        })
+      )
+
+      setGigs(detailedGigs)
     } catch (err) {
       console.error('Error loading gigs:', err)
       setError('Failed to load gigs. Please try again.')
@@ -38,7 +70,7 @@ const MyGigs = () => {
 
   const handleGigClick = async (gig) => {
     try {
-      // Get detailed gig information
+      // Get detailed gig information for modal
       const gigDetails = await apiService.getGigDetails(gig.id)
       setSelectedGig(gigDetails)
       setShowModal(true)
@@ -76,12 +108,6 @@ const MyGigs = () => {
     }
   }
 
-  const getProgressPercentage = (gig) => {
-    const totalHours = gig.total_hours || 0
-    const completedHours = gig.hours_completed || 0
-    return totalHours > 0 ? (completedHours / totalHours) * 100 : 0
-  }
-
   const getProgressColor = (percentage) => {
     if (percentage < 30) return 'bg-red-500'
     if (percentage < 70) return 'bg-yellow-500'
@@ -89,10 +115,10 @@ const MyGigs = () => {
   }
 
   const HoursMeter = ({ gig }) => {
-    const totalHours = gig.total_hours || 0
-    const completedHours = gig.hours_completed || 0
-    const remainingHours = totalHours - completedHours
-    const progressPercentage = getProgressPercentage(gig)
+    const totalHours = parseFloat(gig.total_hours || 0)
+    const completedHours = parseFloat(gig.hours_completed || 0)
+    const remainingHours = parseFloat(gig.total_hours_remaining || 0)
+    const progressPercentage = parseFloat(gig.completion_percentage || 0)
 
     return (
       <div className="bg-white/5 rounded-lg p-3 border border-white/10">
@@ -105,22 +131,22 @@ const MyGigs = () => {
         <div className="w-full bg-white/10 rounded-full h-2 mb-2">
           <div 
             className={`h-2 rounded-full transition-all duration-500 ${getProgressColor(progressPercentage)}`}
-            style={{ width: `${progressPercentage}%` }}
+            style={{ width: `${Math.min(progressPercentage, 100)}%` }}
           />
         </div>
         
         {/* Hours Info */}
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div className="text-center">
-            <div className="text-sm font-semibold text-green-400">{completedHours}</div>
+            <div className="text-sm font-semibold text-green-400">{completedHours.toFixed(1)}</div>
             <div className="text-white/60">Done</div>
           </div>
           <div className="text-center">
-            <div className="text-sm font-semibold text-yellow-400">{remainingHours}</div>
+            <div className="text-sm font-semibold text-yellow-400">{remainingHours.toFixed(1)}</div>
             <div className="text-white/60">Left</div>
           </div>
           <div className="text-center">
-            <div className="text-sm font-semibold text-blue-400">{totalHours}</div>
+            <div className="text-sm font-semibold text-blue-400">{totalHours.toFixed(1)}</div>
             <div className="text-white/60">Total</div>
           </div>
         </div>
@@ -137,51 +163,48 @@ const MyGigs = () => {
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
           <h3 className="text-lg font-semibold text-white mb-1 group-hover:text-blue-300 transition-colors">
-            {gig.title || `${gig.subject_name} - ${gig.level}`}
+            {gig.subject_name || 'Subject'} - {gig.level || 'Level'}
           </h3>
-          <div className="flex items-center space-x-2 mb-2">
-            <span className={`px-2 py-1 text-xs rounded-full border ${getStatusColor(gig.status)}`}>
-              {gig.status?.charAt(0).toUpperCase() + gig.status?.slice(1)}
-            </span>
-            <span className="text-xs text-white/60">ID: {gig.gig_id}</span>
-          </div>
+          <p className="text-sm text-white/70">
+            ID: {gig.gig_id || `GIG-${gig.id}`}
+          </p>
         </div>
-        <div className="text-right">
-          <div className="text-lg font-bold text-green-400">
-            {formatCurrency(gig.hourly_rate_tutor)}
-          </div>
-          <div className="text-xs text-white/60">per hour</div>
-        </div>
+        <span className={`px-2 py-1 text-xs rounded-full border ${getStatusColor(gig.status)}`}>
+          {gig.status?.charAt(0).toUpperCase() + gig.status?.slice(1)}
+        </span>
       </div>
 
-      {/* Client Info */}
-      <div className="bg-white/5 rounded-lg p-3 mb-3">
-        <h4 className="text-sm font-medium text-white mb-2">Client Information</h4>
-        <div className="space-y-1 text-sm">
-          <div className="flex items-center space-x-2">
-            <span className="text-white/70">👤</span>
-            <span className="text-white">{gig.client_name || 'N/A'}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-white/70">📧</span>
-            <a 
-              href={`mailto:${gig.client_email}`} 
-              className="text-blue-400 hover:text-blue-300 transition-colors"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {gig.client_email || 'N/A'}
-            </a>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-white/70">📱</span>
-            <a 
-              href={`tel:${gig.client_phone}`} 
-              className="text-blue-400 hover:text-blue-300 transition-colors"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {gig.client_phone || 'N/A'}
-            </a>
-          </div>
+      {/* Rate and Client Info */}
+      <div className="mb-3 space-y-1">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-white/70">Your Rate:</span>
+          <span className="text-green-400 font-medium">
+            {formatCurrency(parseFloat(gig.hourly_rate_tutor || 0))}/hr
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-white/70">Client:</span>
+          <span className="text-white">{gig.client_name || 'Not specified'}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-white/70">Email:</span>
+          <a 
+            href={`mailto:${gig.client_email}`}
+            className="text-blue-400 hover:text-blue-300 transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {gig.client_email || 'N/A'}
+          </a>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-white/70">Phone:</span>
+          <a 
+            href={`tel:${gig.client_phone}`}
+            className="text-blue-400 hover:text-blue-300 transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {gig.client_phone || 'N/A'}
+          </a>
         </div>
       </div>
 
@@ -196,7 +219,7 @@ const MyGigs = () => {
         </div>
         <div className="text-center">
           <div className="text-sm font-semibold text-purple-400">
-            {formatCurrency((gig.hours_completed || 0) * (gig.hourly_rate_tutor || 0))}
+            {formatCurrency(gig.total_earned || 0)}
           </div>
           <div className="text-white/60">Earned</div>
         </div>
@@ -227,6 +250,12 @@ const MyGigs = () => {
         </div>
         <div className="flex items-center space-x-2">
           <span className="text-sm text-white/60">Total: {gigs.length}</span>
+          <button 
+            onClick={loadGigs}
+            className="btn-secondary text-xs px-3 py-1"
+          >
+            Refresh
+          </button>
         </div>
       </div>
 
@@ -241,12 +270,20 @@ const MyGigs = () => {
       {/* Error State */}
       {error && (
         <div className="glass-card p-4 border-l-4 border-red-500">
-          <p className="text-red-300">{error}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-red-300">{error}</p>
+            <button 
+              onClick={loadGigs}
+              className="btn-primary text-xs px-3 py-1"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       )}
 
       {/* Summary Cards */}
-      {!isLoading && !error && (
+      {!isLoading && !error && gigs.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="glass-card p-4 text-center">
             <div className="text-2xl font-bold text-green-400">{activeGigs.length}</div>
@@ -258,13 +295,13 @@ const MyGigs = () => {
           </div>
           <div className="glass-card p-4 text-center">
             <div className="text-2xl font-bold text-blue-400">
-              {formatCurrency(gigs.reduce((sum, gig) => sum + ((gig.hours_completed || 0) * (gig.hourly_rate_tutor || 0)), 0))}
+              {formatCurrency(gigs.reduce((sum, gig) => sum + (gig.total_earned || 0), 0))}
             </div>
             <div className="text-sm text-white/70">Total Earned</div>
           </div>
           <div className="glass-card p-4 text-center">
             <div className="text-2xl font-bold text-purple-400">
-              {gigs.reduce((sum, gig) => sum + (gig.hours_completed || 0), 0)}h
+              {gigs.reduce((sum, gig) => sum + parseFloat(gig.hours_completed || 0), 0).toFixed(1)}h
             </div>
             <div className="text-sm text-white/70">Hours Logged</div>
           </div>
