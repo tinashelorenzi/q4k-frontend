@@ -1,11 +1,11 @@
-// src/App.jsx - Updated to use React Router while preserving Dashboard functionality
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { ThemeProvider, CssBaseline } from '@mui/material'
+import { darkTheme } from './theme/muiTheme'
 
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext'
 
-// Import your existing components
+// Import components
 import Header from './components/Header'
 import Footer from './components/Footer'
 
@@ -15,8 +15,34 @@ import FeaturesPage from './pages/FeaturesPage'
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import LoginPage from './pages/LoginPage'
-import Dashboard from './pages/Dashboard' // Your existing Dashboard that uses TutorDashboard component
+import LoginPageNew from './pages/LoginPageNew'
+import Dashboard from './pages/Dashboard'
+import DashboardNew from './pages/DashboardNew'
+import AdminDashboard from './pages/AdminDashboard'
 import AccountSetupPage from './pages/AccountSetupPage'
+import AccountSetupPageNew from './pages/AccountSetupPageNew'
+import MeetingRoom from './pages/MeetingRoom'
+
+// Admin Layout and Pages
+import AdminLayout from './layouts/AdminLayout'
+import { 
+  OverviewPage, 
+  UsersPage, 
+  TutorsPage, 
+  GigsPage, 
+  SessionsPage,
+  OnlineSessionsPage, 
+  SettingsPage 
+} from './pages/admin'
+
+// Tutor Layout and Pages
+import TutorLayout from './layouts/TutorLayout'
+import {
+  TutorOverviewPage,
+  TutorGigsPage,
+  TutorSessionsPage,
+  TutorSettingsPage
+} from './pages/tutor'
 
 // Loading component
 const LoadingScreen = () => (
@@ -86,12 +112,19 @@ const PublicLayout = ({ children }) => {
 
 // Main App Content (wrapped by AuthProvider)
 const AppContent = () => {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
   const navigate = useNavigate()
   
   const handleLoginSuccess = (userData) => {
     console.log('Login successful, user data:', userData)
-    navigate('/dashboard')
+    // Redirect based on user type
+    if (userData?.user?.user_type === 'admin' || 
+        userData?.user?.user_type === 'manager' || 
+        userData?.user?.user_type === 'staff') {
+      navigate('/admin')
+    } else {
+      navigate('/dashboard')
+    }
   }
 
   const handleSetupSuccess = () => {
@@ -110,8 +143,11 @@ const AppContent = () => {
 
   return (
     <Routes>
+      {/* Root - Login Page */}
+      <Route path="/" element={<LoginPageNew />} />
+      
       {/* Public Routes */}
-      <Route path="/" element={
+      <Route path="/home" element={
         <PublicLayout>
           <HomePage />
         </PublicLayout>
@@ -136,7 +172,9 @@ const AppContent = () => {
       } />
 
       {/* Auth Routes */}
-      <Route path="/login" element={
+      <Route path="/login" element={<LoginPageNew />} />
+      
+      <Route path="/login-old" element={
         <LoginPage 
           onBack={handleBackToHome} 
           onLoginSuccess={handleLoginSuccess}
@@ -144,23 +182,72 @@ const AppContent = () => {
       } />
 
       <Route path="/setup-account" element={
+        <AccountSetupPageNew 
+          onSetupSuccess={handleSetupSuccess}
+          onBack={handleBackToHome}
+        />
+      } />
+      
+      <Route path="/setup-account-old" element={
         <AccountSetupPage 
           onSetupSuccess={handleSetupSuccess}
           onBack={handleBackToHome}
         />
       } />
 
-      {/* Protected Routes - UNCHANGED Dashboard usage */}
+      {/* Public Meeting Room (No Auth Required) */}
+      <Route path="/meeting/:meetingCode" element={<MeetingRoom />} />
+
+      {/* Protected Routes - Tutor Dashboard with Nested Routes */}
       <Route path="/dashboard" element={
-        isAuthenticated ? <Dashboard /> : <LoginPage onBack={handleBackToHome} onLoginSuccess={handleLoginSuccess} />
+        isAuthenticated ? (
+          user?.user_type === 'tutor' ? <TutorLayout /> : <AdminLayout />
+        ) : <LoginPageNew />
+      }>
+        <Route index element={<TutorOverviewPage />} />
+        <Route path="overview" element={<TutorOverviewPage />} />
+        <Route path="gigs" element={<TutorGigsPage />} />
+        <Route path="sessions" element={<TutorSessionsPage />} />
+        <Route path="settings" element={<TutorSettingsPage />} />
+      </Route>
+      
+      {/* Legacy dashboard route (deprecated) */}
+      <Route path="/dashboard-old" element={
+        isAuthenticated ? <DashboardNew /> : <LoginPageNew />
+      } />
+      
+      {/* Admin Routes - Properly Nested with Layout */}
+      <Route path="/admin" element={
+        isAuthenticated ? (
+          user?.user_type === 'admin' || user?.user_type === 'manager' || user?.user_type === 'staff' 
+            ? <AdminLayout /> 
+            : <DashboardNew />
+        ) : <LoginPageNew />
+      }>
+        <Route index element={<OverviewPage />} />
+        <Route path="users" element={<UsersPage />} />
+        <Route path="tutors" element={<TutorsPage />} />
+        <Route path="gigs" element={<GigsPage />} />
+        <Route path="sessions" element={<SessionsPage />} />
+        <Route path="online-sessions" element={<OnlineSessionsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+      </Route>
+      
+      {/* Legacy routes (deprecated) */}
+      <Route path="/admin-old" element={
+        isAuthenticated ? (
+          user?.user_type === 'admin' || user?.user_type === 'manager' || user?.user_type === 'staff' 
+            ? <AdminDashboard /> 
+            : <DashboardNew />
+        ) : <LoginPageNew />
+      } />
+      
+      <Route path="/dashboard-legacy" element={
+        isAuthenticated ? <Dashboard /> : <LoginPageNew />
       } />
 
-      {/* Catch all route - redirect to home */}
-      <Route path="*" element={
-        <PublicLayout>
-          <HomePage />
-        </PublicLayout>
-      } />
+      {/* Catch all route - redirect to login */}
+      <Route path="*" element={<LoginPageNew />} />
     </Routes>
   )
 }
@@ -168,9 +255,12 @@ const AppContent = () => {
 // Root App Component
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider theme={darkTheme}>
+      <CssBaseline />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 

@@ -1,11 +1,56 @@
-import { useState, useEffect } from 'react'
-import { useAuth } from '../../context/AuthContext'
-import apiService from '../../services/api'
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import apiService from '../../services/api';
+import LogSessionModal from './LogSessionModal';
+import { 
+  ExclamationTriangleIcon,
+  HandRaisedIcon,
+  BookOpenIcon,
+  ClockIcon,
+  ChatBubbleLeftIcon,
+  ChartBarIcon,
+  BookmarkIcon,
+  PencilSquareIcon,
+  UserIcon,
+  CalendarIcon,
+  AcademicCapIcon,
+  CheckIcon,
+  XMarkIcon,
+  CurrencyDollarIcon
+} from '@heroicons/react/24/outline';
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
+  Chip,
+  CircularProgress,
+  Alert,
+  Button,
+  Avatar,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Divider,
+  Paper
+} from '@mui/material';
+
+const COLORS = {
+  darkSlate: '#0f172a',
+  slate: '#1e293b',
+  purple: '#8b5cf6',
+  green: '#10b981',
+  red: '#ef4444',
+  yellow: '#f59e0b',
+};
 
 const Overview = () => {
-  const { user, tutorProfile, isTutor, getTutorId } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const { user, tutorProfile, isTutor, getTutorId } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showLogSession, setShowLogSession] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     gigs: [],
     recentSessions: [],
@@ -15,448 +60,526 @@ const Overview = () => {
       completedHours: 0,
       pendingSessions: 0,
       totalEarnings: 0,
-      thisWeekHours: 0
+      thisWeekHours: 0,
+      thisMonthEarnings: 0
     }
-  })
+  });
 
   useEffect(() => {
-    loadDashboardData()
-  }, [])
+    loadDashboardData();
+  }, []);
 
   const loadDashboardData = async () => {
     try {
-      setLoading(true)
-      setError('')
+      setLoading(true);
+      setError('');
 
       if (isTutor()) {
-        const tutorId = getTutorId()
+        const tutorId = getTutorId();
         if (!tutorId) {
-          throw new Error('Unable to load tutor information')
+          throw new Error('Unable to load tutor information');
         }
 
-        // Load tutor's gigs and sessions
-        const [gigsResponse, sessionsResponse] = await Promise.all([
-          apiService.getTutorGigs(tutorId, { limit: 10 }),
-          apiService.getTutorSessions(tutorId, { limit: 5 })
-        ])
+        // Load tutor's gigs
+        const gigsResponse = await apiService.apiCall(`/gigs/tutor/${tutorId}/`);
+        const gigs = gigsResponse.results || gigsResponse;
 
-        const gigs = gigsResponse.results || gigsResponse || []
-        const sessions = sessionsResponse.results || sessionsResponse || []
+        // Load tutor's sessions
+        const sessionsResponse = await apiService.apiCall(`/gigs/sessions/tutor/${tutorId}/`);
+        const sessions = sessionsResponse.results || sessionsResponse;
 
-        // Calculate statistics
-        const stats = calculateTutorStats(gigs, sessions)
+        // Create a map of gig ID to hourly rate for quick lookup
+        const gigRateMap = {};
+        gigs.forEach(gig => {
+          gigRateMap[gig.id] = parseFloat(gig.hourly_rate_tutor || 0);
+        });
+
+        // Calculate stats
+        const activeGigs = gigs.filter(gig => gig.status === 'active').length;
+        
+        // Filter verified sessions
+        const verifiedSessions = sessions.filter(session => session.is_verified);
+        
+        const completedHours = verifiedSessions
+          .reduce((total, session) => total + parseFloat(session.hours_logged || 0), 0);
+        
+        const pendingSessions = sessions.filter(session => !session.is_verified).length;
+        
+        // Calculate total earnings from verified sessions
+        const totalEarnings = verifiedSessions
+          .reduce((total, session) => {
+            const gigId = session.gig;
+            const hourlyRate = gigRateMap[gigId] || 0;
+            const hours = parseFloat(session.hours_logged || 0);
+            return total + (hourlyRate * hours);
+          }, 0);
+
+        // Calculate this week's hours and earnings
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const thisWeekSessions = verifiedSessions
+          .filter(session => {
+            const sessionDate = new Date(session.session_date);
+            return sessionDate >= oneWeekAgo;
+          });
+        
+        const thisWeekHours = thisWeekSessions
+          .reduce((total, session) => total + parseFloat(session.hours_logged || 0), 0);
+        
+        // Calculate this month's earnings
+        const now = new Date();
+        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const thisMonthSessions = verifiedSessions
+          .filter(session => {
+            const sessionDate = new Date(session.session_date);
+            return sessionDate >= thisMonthStart;
+          });
+        
+        const thisMonthEarnings = thisMonthSessions
+          .reduce((total, session) => {
+            const gigId = session.gig;
+            const hourlyRate = gigRateMap[gigId] || 0;
+            const hours = parseFloat(session.hours_logged || 0);
+            return total + (hourlyRate * hours);
+          }, 0);
 
         setDashboardData({
-          gigs: gigs.slice(0, 5), // Show only 5 recent gigs
-          recentSessions: sessions,
-          stats
-        })
-      } else {
-        // For regular users, load their session data
-        // This would be implemented based on your student/user endpoints
-        setDashboardData({
-          gigs: [],
-          recentSessions: [],
+          gigs,
+          recentSessions: sessions.slice(0, 5),
           stats: {
-            totalGigs: 0,
-            activeGigs: 0,
-            completedHours: 0,
-            pendingSessions: 0,
-            totalEarnings: 0,
-            thisWeekHours: 0
+            totalGigs: gigs.length,
+            activeGigs,
+            completedHours,
+            pendingSessions,
+            totalEarnings,
+            thisWeekHours,
+            thisMonthEarnings
           }
-        })
+        });
       }
     } catch (err) {
-      console.error('Error loading dashboard data:', err)
-      setError('Failed to load dashboard data. Please try again.')
+      console.error('Error loading dashboard data:', err);
+      setError(err.message || 'Failed to load dashboard data');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
-  const calculateTutorStats = (gigs, sessions) => {
-    const totalGigs = gigs.length
-    const activeGigs = gigs.filter(gig => gig.status === 'active').length
-    const completedHours = gigs.reduce((total, gig) => total + (gig.hours_completed || 0), 0)
-    const pendingSessions = sessions.filter(session => session.status === 'pending').length
-    const totalEarnings = gigs.reduce((total, gig) => 
-      total + ((gig.hours_completed || 0) * (gig.hourly_rate_tutor || 0)), 0
-    )
-
-    // Calculate this week's hours
-    const oneWeekAgo = new Date()
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-    const thisWeekSessions = sessions.filter(session => 
-      new Date(session.session_date) >= oneWeekAgo
-    )
-    const thisWeekHours = thisWeekSessions.reduce((total, session) => 
-      total + (session.hours_logged || 0), 0
-    )
-
-    return {
-      totalGigs,
-      activeGigs,
-      completedHours,
-      pendingSessions,
-      totalEarnings,
-      thisWeekHours
-    }
-  }
-
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-        return 'text-green-400 bg-green-400/10 border-green-400/20'
-      case 'pending':
-        return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20'
-      case 'completed':
-        return 'text-blue-400 bg-blue-400/10 border-blue-400/20'
-      case 'cancelled':
-        return 'text-red-400 bg-red-400/10 border-red-400/20'
-      default:
-        return 'text-gray-400 bg-gray-400/10 border-gray-400/20'
-    }
-  }
-
-  const getProgressColor = (percentage) => {
-    if (percentage >= 75) return 'bg-gradient-to-r from-green-500 to-green-400'
-    if (percentage >= 50) return 'bg-gradient-to-r from-blue-500 to-blue-400'
-    if (percentage >= 25) return 'bg-gradient-to-r from-yellow-500 to-yellow-400'
-    return 'bg-gradient-to-r from-red-500 to-red-400'
-  }
+  };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
+    return `R ${amount.toFixed(2)}`;
+  };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'Not set'
     return new Date(dateString).toLocaleDateString('en-ZA', {
-      day: '2-digit',
+      year: 'numeric',
       month: 'short',
-      year: 'numeric'
-    })
-  }
+      day: 'numeric'
+    });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active': return COLORS.green;
+      case 'completed': return COLORS.purple;
+      case 'pending': return COLORS.yellow;
+      case 'cancelled': return COLORS.red;
+      default: return 'rgba(255, 255, 255, 0.5)';
+    }
+  };
+
+  const getStatusChip = (status) => {
+    const color = getStatusColor(status);
+    return (
+      <Chip
+        label={status.charAt(0).toUpperCase() + status.slice(1)}
+        size="small"
+        sx={{
+          backgroundColor: `${color}20`,
+          color: color,
+          fontWeight: 600,
+          fontSize: '0.75rem'
+        }}
+      />
+    );
+  };
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        {/* Loading skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="glass-card p-6 animate-pulse">
-              <div className="h-4 bg-white/10 rounded mb-2"></div>
-              <div className="h-8 bg-white/10 rounded"></div>
-            </div>
-          ))}
-        </div>
-        <div className="glass-card p-6 animate-pulse">
-          <div className="h-6 bg-white/10 rounded mb-4 w-48"></div>
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-4 bg-white/10 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    )
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+        <CircularProgress sx={{ color: COLORS.purple }} />
+      </Box>
+    );
   }
 
   if (error) {
     return (
-      <div className="glass-card p-6 border-l-4 border-red-500">
-        <div className="flex items-center space-x-3">
-          <span className="text-red-500 text-xl">⚠️</span>
-          <div>
-            <h3 className="text-white font-semibold">Error Loading Dashboard</h3>
-            <p className="text-white/70 text-sm">{error}</p>
-            <button 
-              onClick={loadDashboardData}
-              className="mt-2 btn-primary text-xs py-1 px-3"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </div>
-    )
+      <Alert severity="error" sx={{ mb: 3 }}>
+        {error}
+      </Alert>
+    );
   }
 
+  const { stats, recentSessions } = dashboardData;
+
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Welcome Section */}
-      <div className="glass-card p-4 sm:p-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
-          Welcome back, {user?.first_name || 'User'}! 👋
-        </h2>
-        <p className="text-white/70 text-sm sm:text-base">
-          {isTutor() 
-            ? "Here's your tutoring overview and recent activity." 
-            : "Here's your learning progress and upcoming sessions."
-          }
-        </p>
-      </div>
+    <Box>
+      {/* Stats Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(139, 92, 246, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Avatar sx={{ 
+                  bgcolor: `${COLORS.purple}20`, 
+                  color: COLORS.purple,
+                  mr: 2,
+                  width: 48,
+                  height: 48
+                }}>
+                  <BookOpenIcon className="h-6 w-6" />
+                </Avatar>
+                <Box>
+                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
+                    {stats.totalGigs}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Total Gigs
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
 
-      {/* Statistics Cards */}
-      {isTutor() && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="glass-card p-3 sm:p-4 text-center">
-            <div className="text-2xl sm:text-3xl font-bold text-blue-400">
-              {dashboardData.stats.totalGigs}
-            </div>
-            <div className="text-xs sm:text-sm text-white/70">Total Gigs</div>
-          </div>
-          
-          <div className="glass-card p-3 sm:p-4 text-center">
-            <div className="text-2xl sm:text-3xl font-bold text-green-400">
-              {dashboardData.stats.activeGigs}
-            </div>
-            <div className="text-xs sm:text-sm text-white/70">Active Gigs</div>
-          </div>
-          
-          <div className="glass-card p-3 sm:p-4 text-center">
-            <div className="text-2xl sm:text-3xl font-bold text-purple-400">
-              {dashboardData.stats.completedHours}
-            </div>
-            <div className="text-xs sm:text-sm text-white/70">Hours Taught</div>
-          </div>
-          
-          <div className="glass-card p-3 sm:p-4 text-center">
-            <div className="text-2xl sm:text-3xl font-bold text-yellow-400">
-              {formatCurrency(dashboardData.stats.totalEarnings)}
-            </div>
-            <div className="text-xs sm:text-sm text-white/70">Total Earned</div>
-          </div>
-        </div>
-      )}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(16, 185, 129, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Avatar sx={{ 
+                  bgcolor: `${COLORS.green}20`, 
+                  color: COLORS.green,
+                  mr: 2,
+                  width: 48,
+                  height: 48
+                }}>
+                  <ChartBarIcon className="h-6 w-6" />
+                </Avatar>
+                <Box>
+                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
+                    {stats.activeGigs}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Active Gigs
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
 
-      {/* Quick Actions */}
-      <div className="glass-card p-4 sm:p-6">
-        <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          {isTutor() ? (
-            <>
-              <button className="btn-primary p-3 sm:p-4 text-center space-y-1 sm:space-y-2 rounded-xl">
-                <div className="text-xl sm:text-2xl">📚</div>
-                <div className="text-xs sm:text-sm font-medium">My Gigs</div>
-              </button>
-              <button className="btn-primary p-3 sm:p-4 text-center space-y-1 sm:space-y-2 rounded-xl">
-                <div className="text-xl sm:text-2xl">⏰</div>
-                <div className="text-xs sm:text-sm font-medium">Log Session</div>
-              </button>
-              <button className="btn-secondary p-3 sm:p-4 text-center space-y-1 sm:space-y-2 rounded-xl">
-                <div className="text-xl sm:text-2xl">💬</div>
-                <div className="text-xs sm:text-sm font-medium">Messages</div>
-              </button>
-              <button className="btn-secondary p-3 sm:p-4 text-center space-y-1 sm:space-y-2 rounded-xl">
-                <div className="text-xl sm:text-2xl">📊</div>
-                <div className="text-xs sm:text-sm font-medium">Analytics</div>
-              </button>
-            </>
-          ) : (
-            <>
-              <button className="btn-primary p-3 sm:p-4 text-center space-y-1 sm:space-y-2 rounded-xl">
-                <div className="text-xl sm:text-2xl">📖</div>
-                <div className="text-xs sm:text-sm font-medium">Study</div>
-              </button>
-              <button className="btn-primary p-3 sm:p-4 text-center space-y-1 sm:space-y-2 rounded-xl">
-                <div className="text-xl sm:text-2xl">📝</div>
-                <div className="text-xs sm:text-sm font-medium">Homework</div>
-              </button>
-              <button className="btn-secondary p-3 sm:p-4 text-center space-y-1 sm:space-y-2 rounded-xl">
-                <div className="text-xl sm:text-2xl">👨‍🏫</div>
-                <div className="text-xs sm:text-sm font-medium">Find Tutor</div>
-              </button>
-              <button className="btn-secondary p-3 sm:p-4 text-center space-y-1 sm:space-y-2 rounded-xl">
-                <div className="text-xl sm:text-2xl">📅</div>
-                <div className="text-xs sm:text-sm font-medium">Schedule</div>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(245, 158, 11, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Avatar sx={{ 
+                  bgcolor: `${COLORS.yellow}20`, 
+                  color: COLORS.yellow,
+                  mr: 2,
+                  width: 48,
+                  height: 48
+                }}>
+                  <ClockIcon className="h-6 w-6" />
+                </Avatar>
+                <Box>
+                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
+                    {stats.completedHours.toFixed(1)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Hours Completed
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
 
-      {/* Tutor-specific content */}
-      {isTutor() && (
-        <>
-          {/* Recent Gigs */}
-          <div className="glass-card p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg sm:text-xl font-semibold text-white">Recent Gigs</h3>
-              <span className="text-xs sm:text-sm text-white/70">
-                {dashboardData.gigs.length} of {dashboardData.stats.totalGigs} total
-              </span>
-            </div>
-            
-            {dashboardData.gigs.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-4xl mb-2">📚</div>
-                <p className="text-white/70">No gigs yet</p>
-                <p className="text-white/50 text-sm">Your assigned gigs will appear here</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {dashboardData.gigs.slice(0, 5).map((gig) => (
-                  <div key={gig.id} className="bg-white/5 rounded-xl p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-white mb-1">
-                          {gig.title || `${gig.subject_name} - ${gig.level}`}
-                        </h4>
-                        <p className="text-white/70 text-sm">
-                          Client: {gig.client_name || 'Not specified'}
-                        </p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs rounded-full border ${getStatusColor(gig.status)}`}>
-                        {gig.status?.charAt(0).toUpperCase() + gig.status?.slice(1)}
-                      </span>
-                    </div>
-                    
-                    {/* Progress Bar */}
-                    <div className="mb-3">
-                      <div className="flex justify-between text-sm text-white/70 mb-1">
-                        <span>Progress</span>
-                        <span>
-                          {gig.hours_completed || 0} / {gig.total_hours || 0} hours
-                        </span>
-                      </div>
-                      <div className="w-full bg-white/10 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full transition-all duration-500 ${
-                            getProgressColor(gig.total_hours > 0 
-                              ? ((gig.hours_completed || 0) / gig.total_hours) * 100 
-                              : 0)
-                          }`}
-                          style={{ 
-                            width: `${gig.total_hours > 0 
-                              ? ((gig.hours_completed || 0) / gig.total_hours) * 100 
-                              : 0}%` 
-                          }}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(16, 185, 129, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Avatar sx={{ 
+                  bgcolor: `${COLORS.green}20`, 
+                  color: COLORS.green,
+                  mr: 2,
+                  width: 48,
+                  height: 48
+                }}>
+                  <AcademicCapIcon className="h-6 w-6" />
+                </Avatar>
+                <Box>
+                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
+                    {formatCurrency(stats.totalEarnings)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Total Earnings
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Time-based Stats */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(139, 92, 246, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Avatar sx={{ 
+                  bgcolor: `${COLORS.purple}20`, 
+                  color: COLORS.purple,
+                  mr: 2,
+                  width: 48,
+                  height: 48
+                }}>
+                  <CurrencyDollarIcon className="h-6 w-6" />
+                </Avatar>
+                <Box>
+                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
+                    {formatCurrency(stats.thisMonthEarnings)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                    This Month Earnings
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(59, 130, 246, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Avatar sx={{ 
+                  bgcolor: `rgba(59, 130, 246, 0.2)`, 
+                  color: '#3b82f6',
+                  mr: 2,
+                  width: 48,
+                  height: 48
+                }}>
+                  <ClockIcon className="h-6 w-6" />
+                </Avatar>
+                <Box>
+                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
+                    {stats.thisWeekHours.toFixed(1)}h
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                    This Week Hours
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(245, 158, 11, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Avatar sx={{ 
+                  bgcolor: `${COLORS.yellow}20`, 
+                  color: COLORS.yellow,
+                  mr: 2,
+                  width: 48,
+                  height: 48
+                }}>
+                  <ExclamationTriangleIcon className="h-6 w-6" />
+                </Avatar>
+                <Box>
+                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
+                    {stats.pendingSessions}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Pending Sessions
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={3}>
+        {/* Recent Sessions */}
+        <Grid item xs={12} md={8}>
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(139, 92, 246, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ color: 'white', mb: 3, fontWeight: 600 }}>
+                Recent Sessions
+              </Typography>
+              
+              {recentSessions.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <ClockIcon className="h-12 w-12 mx-auto mb-3" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
+                  <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                    No recent sessions found
+                  </Typography>
+                </Box>
+              ) : (
+                <List>
+                  {recentSessions.map((session, index) => (
+                    <Box key={session.id}>
+                      <ListItem sx={{ px: 0 }}>
+                        <ListItemIcon>
+                          <Avatar sx={{ 
+                            bgcolor: session.is_verified ? `${COLORS.green}20` : `${COLORS.yellow}20`,
+                            color: session.is_verified ? COLORS.green : COLORS.yellow,
+                            width: 40,
+                            height: 40
+                          }}>
+                            {session.is_verified ? (
+                              <CheckIcon className="h-5 w-5" />
+                            ) : (
+                              <ClockIcon className="h-5 w-5" />
+                            )}
+                          </Avatar>
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={
+                            <Typography variant="body1" sx={{ color: 'white', fontWeight: 600 }}>
+                              {session.gig_info?.title || 'Session'}
+                            </Typography>
+                          }
+                          secondary={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                              <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                                {formatDate(session.session_date)} • {session.hours_logged}h
+                              </Typography>
+                              {getStatusChip(session.is_verified ? 'verified' : 'pending')}
+                            </Box>
+                          }
                         />
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-white/70">
-                        Rate: {formatCurrency(gig.hourly_rate_tutor || 0)}/hr
-                      </span>
-                      <span className="text-green-400 font-medium">
-                        Earned: {formatCurrency((gig.hours_completed || 0) * (gig.hourly_rate_tutor || 0))}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                      </ListItem>
+                      {index < recentSessions.length - 1 && (
+                        <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+                      )}
+                    </Box>
+                  ))}
+                </List>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
 
-          {/* Recent Sessions */}
-          <div className="glass-card p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg sm:text-xl font-semibold text-white">Recent Sessions</h3>
-              <span className="text-xs sm:text-sm text-white/70">
-                Last 5 sessions
-              </span>
-            </div>
-            
-            {dashboardData.recentSessions.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-4xl mb-2">⏰</div>
-                <p className="text-white/70">No sessions yet</p>
-                <p className="text-white/50 text-sm">Your logged sessions will appear here</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {dashboardData.recentSessions.map((session) => (
-                  <div key={session.id} className="bg-white/5 rounded-xl p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-white">
-                          {session.gig_title || 'Session'}
-                        </h4>
-                        <p className="text-white/70 text-sm">
-                          {formatDate(session.session_date)} • {session.start_time} - {session.end_time}
-                        </p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs rounded-full border ${getStatusColor(session.status)}`}>
-                        {session.status?.charAt(0).toUpperCase() + session.status?.slice(1)}
-                      </span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-white/70">
-                        Duration: {session.hours_logged || 0} hours
-                      </span>
-                      <span className="text-blue-400">
-                        {session.student_attendance ? '✓ Student Present' : '✗ Student Absent'}
-                      </span>
-                    </div>
-                    
-                    {session.session_notes && (
-                      <p className="text-white/60 text-sm mt-2 italic">
-                        "{session.session_notes.length > 100 
-                          ? session.session_notes.substring(0, 100) + '...' 
-                          : session.session_notes}"
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        {/* Quick Actions */}
+        <Grid item xs={12} md={4}>
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(139, 92, 246, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ color: 'white', mb: 3, fontWeight: 600 }}>
+                Quick Actions
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<BookOpenIcon className="h-5 w-5" />}
+                  sx={{
+                    borderColor: COLORS.purple,
+                    color: COLORS.purple,
+                    '&:hover': {
+                      borderColor: '#7c3aed',
+                      backgroundColor: 'rgba(139, 92, 246, 0.1)'
+                    }
+                  }}
+                >
+                  View My Gigs
+                </Button>
+                
+                <Button
+                  variant="outlined"
+                  startIcon={<ClockIcon className="h-5 w-5" />}
+                  onClick={() => setShowLogSession(true)}
+                  sx={{
+                    borderColor: COLORS.green,
+                    color: COLORS.green,
+                    '&:hover': {
+                      borderColor: '#059669',
+                      backgroundColor: 'rgba(16, 185, 129, 0.1)'
+                    }
+                  }}
+                >
+                  Log Session
+                </Button>
+                
+                <Button
+                  variant="outlined"
+                  startIcon={<PencilSquareIcon className="h-5 w-5" />}
+                  sx={{
+                    borderColor: COLORS.yellow,
+                    color: COLORS.yellow,
+                    '&:hover': {
+                      borderColor: '#d97706',
+                      backgroundColor: 'rgba(245, 158, 11, 0.1)'
+                    }
+                  }}
+                >
+                  Update Profile
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
-          {/* Weekly Summary */}
-          <div className="glass-card p-4 sm:p-6">
-            <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">This Week</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-400">
-                  {dashboardData.stats.thisWeekHours}
-                </div>
-                <div className="text-sm text-white/70">Hours Taught</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-400">
-                  {dashboardData.stats.pendingSessions}
-                </div>
-                <div className="text-sm text-white/70">Pending Sessions</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-400">
-                  {formatCurrency(dashboardData.stats.thisWeekHours * 
-                    (dashboardData.gigs[0]?.hourly_rate_tutor || 0))}
-                </div>
-                <div className="text-sm text-white/70">Week's Earnings</div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      {/* Log Session Modal */}
+      <LogSessionModal
+        isOpen={showLogSession}
+        onClose={() => setShowLogSession(false)}
+        onSuccess={() => {
+          setShowLogSession(false);
+          loadDashboardData();
+        }}
+      />
+    </Box>
+  );
+};
 
-      {/* Regular user content */}
-      {!isTutor() && (
-        <div className="glass-card p-4 sm:p-6">
-          <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">Your Learning Journey</h3>
-          <div className="text-center py-8">
-            <div className="text-4xl mb-4">🎓</div>
-            <h4 className="text-white font-semibold mb-2">Ready to Start Learning?</h4>
-            <p className="text-white/70 mb-4">
-              Connect with expert tutors and begin your educational journey.
-            </p>
-            <button className="btn-primary px-6 py-2">
-              Find a Tutor
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-export default Overview
+export default Overview;

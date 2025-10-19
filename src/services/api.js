@@ -249,6 +249,11 @@ class ApiService {
     })
   }
 
+  // Alias for createSession (for consistency)
+  async createGigSession(sessionData) {
+    return await this.createSession(sessionData)
+  }
+
   async updateSession(sessionId, sessionData) {
     return await this.apiCall(`/sessions/${sessionId}/`, {
       method: 'PUT',

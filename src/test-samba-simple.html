@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Digital Samba Test</title>
+    <script crossorigin src="https://unpkg.com/@digitalsamba/embedded-sdk"></script>
+</head>
+<body>
+    <h1>Digital Samba Test</h1>
+    <div id="container" style="width: 800px; height: 600px; border: 1px solid #ccc;"></div>
+    
+    <script>
+        console.log('Digital Samba SDK:', DigitalSambaEmbedded);
+        
+        try {
+            const sambaFrame = DigitalSambaEmbedded.createControl({
+                url: 'https://quest4knowledge.digitalsamba.com/pfiKvvk2yJ9bs6L',
+                root: document.getElementById('container')
+            });
+            
+            console.log('Control created:', sambaFrame);
+            console.log('Available methods:', Object.getOwnPropertyNames(sambaFrame));
+            console.log('addEventListener exists:', typeof sambaFrame.addEventListener);
+            console.log('on method exists:', typeof sambaFrame.on);
+            
+            sambaFrame.load();
+            console.log('Room loading...');
+            
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    </script>
+</body>
+</html>
