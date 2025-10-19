@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { Turnstile } from '@marsidev/react-turnstile';
 import {
   Box,
   Container,
@@ -26,6 +27,7 @@ const ForgotPasswordPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,12 +39,20 @@ const ForgotPasswordPage = () => {
       return;
     }
 
+    if (!turnstileToken) {
+      setError('Please complete the verification');
+      return;
+    }
+
     try {
       setLoading(true);
 
       const response = await apiService.apiCall('/auth/password-reset/request/', {
         method: 'POST',
-        body: JSON.stringify({ email: email.toLowerCase().trim() })
+        body: JSON.stringify({ 
+          email: email.toLowerCase().trim(),
+          turnstile_token: turnstileToken
+        })
       });
 
       setSuccess(true);
@@ -224,12 +234,23 @@ const ForgotPasswordPage = () => {
                     }}
                   />
 
+                  {/* Turnstile Widget */}
+                  <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
+                    <Turnstile
+                      siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      onError={() => setTurnstileToken('')}
+                      onExpire={() => setTurnstileToken('')}
+                      theme="dark"
+                    />
+                  </Box>
+
                   <Button
                     type="submit"
                     fullWidth
                     variant="contained"
                     size="large"
-                    disabled={loading}
+                    disabled={loading || !turnstileToken}
                     startIcon={loading ? <CircularProgress size={20} /> : <Email />}
                     sx={{
                       py: 1.5,

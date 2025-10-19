@@ -58,11 +58,11 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const login = async (email, password) => {
+  const login = async (email, password, turnstileToken = null) => {
     try {
       setIsLoading(true)
       
-      const response = await apiService.login(email, password)
+      const response = await apiService.login(email, password, turnstileToken)
       
       // Validate user status
       if (!response.user.is_active) {

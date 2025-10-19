@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { Turnstile } from '@marsidev/react-turnstile';
 import {
   Box,
   Container,
@@ -31,6 +32,7 @@ const LoginPageNew = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
   
   const [formData, setFormData] = useState({
     email: '',
@@ -48,11 +50,18 @@ const LoginPageNew = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // Check Turnstile verification
+    if (!turnstileToken) {
+      setError('Please complete the verification');
+      return;
+    }
+
     setLoading(true);
 
     try {
       console.log('Attempting login with:', formData.email);
-      const result = await login(formData.email, formData.password);
+      const result = await login(formData.email, formData.password, turnstileToken);
       console.log('Login result:', result);
       
       // Login successful if we get a response with user data
@@ -234,12 +243,23 @@ const LoginPageNew = () => {
                 </MuiLink>
               </Box>
 
+              {/* Turnstile Widget */}
+              <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
+                <Turnstile
+                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+                  onSuccess={(token) => setTurnstileToken(token)}
+                  onError={() => setTurnstileToken('')}
+                  onExpire={() => setTurnstileToken('')}
+                  theme="dark"
+                />
+              </Box>
+
               <Button
                 type="submit"
                 fullWidth
                 variant="contained"
                 size="large"
-                disabled={loading}
+                disabled={loading || !turnstileToken}
                 startIcon={loading ? <CircularProgress size={20} /> : <LoginIcon />}
                 sx={{
                   py: 1.5,

@@ -34,14 +34,19 @@ class ApiService {
   }
 
   // Authentication methods
-  async login(email, password) {
+  async login(email, password, turnstileToken = null) {
     try {
+      const payload = { email, password };
+      if (turnstileToken) {
+        payload.turnstile_token = turnstileToken;
+      }
+      
       const response = await fetch(`${this.apiURL}/auth/login/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify(payload)
       })
 
       const data = await this.handleResponse(response)
