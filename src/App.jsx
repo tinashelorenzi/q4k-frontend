@@ -22,6 +22,8 @@ import AdminDashboard from './pages/AdminDashboard'
 import AccountSetupPage from './pages/AccountSetupPage'
 import AccountSetupPageNew from './pages/AccountSetupPageNew'
 import MeetingRoom from './pages/MeetingRoom'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 // Admin Layout and Pages
 import AdminLayout from './layouts/AdminLayout'
@@ -41,6 +43,7 @@ import {
   TutorOverviewPage,
   TutorGigsPage,
   TutorSessionsPage,
+  TutorOnlineMeetingsPage,
   TutorSettingsPage
 } from './pages/tutor'
 
@@ -173,6 +176,8 @@ const AppContent = () => {
 
       {/* Auth Routes */}
       <Route path="/login" element={<LoginPageNew />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       
       <Route path="/login-old" element={
         <LoginPage 
@@ -208,6 +213,7 @@ const AppContent = () => {
         <Route path="overview" element={<TutorOverviewPage />} />
         <Route path="gigs" element={<TutorGigsPage />} />
         <Route path="sessions" element={<TutorSessionsPage />} />
+        <Route path="online-meetings" element={<TutorOnlineMeetingsPage />} />
         <Route path="settings" element={<TutorSettingsPage />} />
       </Route>
       

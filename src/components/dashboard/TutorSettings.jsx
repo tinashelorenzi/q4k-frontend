@@ -1,14 +1,56 @@
-import React, { useState, useEffect } from 'react'
-import { useAuth } from '../../context/AuthContext'
-import apiService from '../../services/api'
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import apiService from '../../services/api';
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
+  TextField,
+  Button,
+  Switch,
+  FormControlLabel,
+  CircularProgress,
+  Alert,
+  Divider,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Tabs,
+  Tab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@mui/material';
+import {
+  Cog6ToothIcon,
+  UserIcon,
+  BellIcon,
+  LockClosedIcon,
+  EyeIcon,
+  KeyIcon,
+} from '@heroicons/react/24/outline';
+
+const COLORS = {
+  darkSlate: '#0f172a',
+  slate: '#1e293b',
+  purple: '#8b5cf6',
+  green: '#10b981',
+  red: '#ef4444',
+  yellow: '#f59e0b',
+};
 
 const TutorSettings = () => {
-  const { user, updateUser } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState('profile')
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const { user, updateUser } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
 
   // State for all settings
   const [userSettings, setUserSettings] = useState({
@@ -30,7 +72,7 @@ const TutorSettings = () => {
     timezone: 'Africa/Johannesburg',
     date_format: 'YYYY-MM-DD',
     time_format: '24h',
-    theme_preference: 'light',
+    theme_preference: 'dark',
     
     // Privacy settings
     profile_visible: true,
@@ -41,525 +83,801 @@ const TutorSettings = () => {
     // Security settings
     two_factor_enabled: false,
     session_timeout: 1440
-  })
+  });
 
   const [passwordData, setPasswordData] = useState({
     current_password: '',
     new_password: '',
     confirm_password: ''
-  })
-
-  const [tutorProfile, setTutorProfile] = useState(null)
+  });
 
   useEffect(() => {
-    loadUserData()
-  }, [])
+    loadSettings();
+  }, []);
 
-  const loadUserData = async () => {
+  const loadSettings = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
+      setError('');
       
-      // Load user profile
-      const profileResponse = await apiService.getUserProfile()
-      const settingsResponse = await apiService.getUserSettings()
-      
-      // Update state with current data
-      setUserSettings({
-        ...userSettings,
-        first_name: profileResponse.user.first_name || '',
-        last_name: profileResponse.user.last_name || '',
-        email: profileResponse.user.email || '',
-        phone_number: profileResponse.user.phone_number || '',
-        ...settingsResponse
-      })
-
-      // Load tutor profile if available
-      if (profileResponse.tutor_profile) {
-        setTutorProfile(profileResponse.tutor_profile)
+      if (user) {
+        setUserSettings(prev => ({
+          ...prev,
+          first_name: user.first_name || '',
+          last_name: user.last_name || '',
+          email: user.email || '',
+          phone_number: user.phone_number || '',
+          email_notifications: user.email_notifications ?? true,
+          sms_notifications: user.sms_notifications ?? false,
+          push_notifications: user.push_notifications ?? true,
+          marketing_emails: user.marketing_emails ?? false,
+          login_notifications: user.login_notifications ?? true,
+          language_preference: user.language_preference || 'en',
+          timezone: user.timezone || 'Africa/Johannesburg',
+          date_format: user.date_format || 'YYYY-MM-DD',
+          time_format: user.time_format || '24h',
+          theme_preference: user.theme_preference || 'dark',
+          profile_visible: user.profile_visible ?? true,
+          show_online_status: user.show_online_status ?? true,
+          show_email: user.show_email ?? false,
+          show_phone: user.show_phone ?? false,
+          two_factor_enabled: user.two_factor_enabled ?? false,
+          session_timeout: user.session_timeout || 1440
+        }));
       }
-      
-    } catch (error) {
-      console.error('Error loading user data:', error)
+    } catch (err) {
+      console.error('Error loading settings:', err);
+      setError('Failed to load settings');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const handleSettingChange = (key, value) => {
+  const handleChange = (field, value) => {
     setUserSettings(prev => ({
       ...prev,
-      [key]: value
-    }))
-  }
+      [field]: value
+    }));
+  };
 
-  const saveSettings = async (settingsToSave = userSettings) => {
+  const handleSaveSettings = async () => {
     try {
-      setSaving(true)
-      
-      // Separate profile data from settings data
+      setSaving(true);
+      setError('');
+      setSuccess('');
+
       const profileData = {
-        first_name: settingsToSave.first_name,
-        last_name: settingsToSave.last_name,
-        email: settingsToSave.email,
-        phone_number: settingsToSave.phone_number
-      }
+        first_name: userSettings.first_name,
+        last_name: userSettings.last_name,
+        email: userSettings.email,
+        phone_number: userSettings.phone_number
+      };
       
       const settingsData = {
-        email_notifications: settingsToSave.email_notifications,
-        sms_notifications: settingsToSave.sms_notifications,
-        push_notifications: settingsToSave.push_notifications,
-        marketing_emails: settingsToSave.marketing_emails,
-        login_notifications: settingsToSave.login_notifications,
-        language_preference: settingsToSave.language_preference,
-        timezone: settingsToSave.timezone,
-        date_format: settingsToSave.date_format,
-        time_format: settingsToSave.time_format,
-        theme_preference: settingsToSave.theme_preference,
-        profile_visible: settingsToSave.profile_visible,
-        show_online_status: settingsToSave.show_online_status,
-        show_email: settingsToSave.show_email,
-        show_phone: settingsToSave.show_phone,
-        two_factor_enabled: settingsToSave.two_factor_enabled,
-        session_timeout: settingsToSave.session_timeout
-      }
+        email_notifications: userSettings.email_notifications,
+        sms_notifications: userSettings.sms_notifications,
+        push_notifications: userSettings.push_notifications,
+        marketing_emails: userSettings.marketing_emails,
+        login_notifications: userSettings.login_notifications,
+        language_preference: userSettings.language_preference,
+        timezone: userSettings.timezone,
+        date_format: userSettings.date_format,
+        time_format: userSettings.time_format,
+        theme_preference: userSettings.theme_preference,
+        profile_visible: userSettings.profile_visible,
+        show_online_status: userSettings.show_online_status,
+        show_email: userSettings.show_email,
+        show_phone: userSettings.show_phone,
+        two_factor_enabled: userSettings.two_factor_enabled,
+        session_timeout: userSettings.session_timeout
+      };
 
-      // Save both profile and settings
       await Promise.all([
         apiService.partialUpdateUserProfile(profileData),
         apiService.partialUpdateUserSettings(settingsData)
-      ])
+      ]);
 
-      // Update auth context
-      updateUser({ ...user, ...profileData })
+      updateUser({ ...user, ...profileData });
+      setSuccess('Settings saved successfully!');
       
-      // Show success message (you can implement a toast notification)
-      console.log('Settings saved successfully!')
-      
-    } catch (error) {
-      console.error('Error saving settings:', error)
-      // Show error message
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      setError('Failed to save settings');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const handlePasswordChange = async () => {
     if (passwordData.new_password !== passwordData.confirm_password) {
-      alert('New passwords do not match!')
-      return
+      setError('New passwords do not match!');
+      return;
     }
 
     try {
-      await apiService.changePassword(passwordData)
-      setShowPasswordModal(false)
-      setPasswordData({ current_password: '', new_password: '', confirm_password: '' })
-      alert('Password changed successfully!')
-    } catch (error) {
-      console.error('Error changing password:', error)
-      alert('Error changing password. Please check your current password.')
+      await apiService.changePassword(passwordData);
+      setShowPasswordModal(false);
+      setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
+      setSuccess('Password changed successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('Error changing password:', err);
+      setError('Error changing password. Please check your current password.');
     }
-  }
-
-  const handleAccountDeactivation = async () => {
-    const password = prompt('Enter your password to confirm deactivation:')
-    if (!password) return
-
-    try {
-      await apiService.deactivateAccount(password)
-      alert('Account deactivated successfully')
-      // Logout user
-      window.location.reload()
-    } catch (error) {
-      console.error('Error deactivating account:', error)
-      alert('Error deactivating account. Please check your password.')
-    }
-  }
-
-  // Toggle component for settings
-  const ToggleSwitch = ({ checked, onChange, label, description }) => (
-    <div className="flex items-center justify-between py-3">
-      <div>
-        <span className="text-white text-sm sm:text-base">{label}</span>
-        {description && <p className="text-white/60 text-xs">{description}</p>}
-      </div>
-      <button
-        onClick={() => onChange(!checked)}
-        className={`w-12 h-6 rounded-full relative transition-colors ${
-          checked ? 'bg-blue-500' : 'bg-gray-600'
-        }`}
-      >
-        <div
-          className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${
-            checked ? 'translate-x-6' : 'translate-x-1'
-          }`}
-        />
-      </button>
-    </div>
-  )
-
-  // Dropdown component for select options
-  const SelectField = ({ value, onChange, options, label }) => (
-    <div className="py-2">
-      <label className="text-white text-sm block mb-2">{label}</label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-      >
-        {options.map(option => (
-          <option key={option.value} value={option.value} className="bg-gray-800">
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  )
-
-  // Input field component
-  const InputField = ({ type = 'text', value, onChange, label, placeholder }) => (
-    <div className="py-2">
-      <label className="text-white text-sm block mb-2">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 focus:outline-none focus:border-blue-500"
-      />
-    </div>
-  )
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-      </div>
-    )
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+        <CircularProgress sx={{ color: COLORS.purple }} />
+      </Box>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="glass-card p-6">
-        <h2 className="text-2xl font-bold text-white mb-2">Settings</h2>
-        <p className="text-white/70">Manage your account preferences and privacy settings</p>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="glass-card p-1">
-        <div className="flex space-x-1">
-          {[
-            { id: 'profile', label: 'Profile', icon: '👤' },
-            { id: 'notifications', label: 'Notifications', icon: '🔔' },
-            { id: 'preferences', label: 'Preferences', icon: '⚙️' },
-            { id: 'privacy', label: 'Privacy', icon: '🔒' },
-            { id: 'security', label: 'Security', icon: '🛡️' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-blue-500 text-white'
-                  : 'text-white/70 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              <span className="hidden sm:inline">{tab.icon} {tab.label}</span>
-              <span className="sm:hidden">{tab.icon}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Profile Tab */}
-      {activeTab === 'profile' && (
-        <div className="space-y-6">
-          <div className="glass-card p-6">
-            <h3 className="text-xl font-semibold text-white mb-4">Personal Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputField
-                label="First Name"
-                value={userSettings.first_name}
-                onChange={(value) => handleSettingChange('first_name', value)}
-                placeholder="Enter your first name"
-              />
-              <InputField
-                label="Last Name"
-                value={userSettings.last_name}
-                onChange={(value) => handleSettingChange('last_name', value)}
-                placeholder="Enter your last name"
-              />
-              <InputField
-                type="email"
-                label="Email Address"
-                value={userSettings.email}
-                onChange={(value) => handleSettingChange('email', value)}
-                placeholder="Enter your email"
-              />
-              <InputField
-                type="tel"
-                label="Phone Number"
-                value={userSettings.phone_number}
-                onChange={(value) => handleSettingChange('phone_number', value)}
-                placeholder="Enter your phone number"
-              />
-            </div>
-          </div>
-
-          {tutorProfile && (
-            <div className="glass-card p-6">
-              <h3 className="text-xl font-semibold text-white mb-4">Tutor Profile</h3>
-              <div className="space-y-2 text-white/70">
-                <div className="flex justify-between">
-                  <span>Hourly Rate:</span>
-                  <span>R{tutorProfile.hourly_rate || 'Not set'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Experience:</span>
-                  <span>{tutorProfile.years_of_experience || 0} years</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Subjects:</span>
-                  <span>{tutorProfile.subjects_of_expertise || 'Not specified'}</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+    <Box>
+      {success && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          {success}
+        </Alert>
       )}
 
-      {/* Notifications Tab */}
-      {activeTab === 'notifications' && (
-        <div className="glass-card p-6">
-          <h3 className="text-xl font-semibold text-white mb-4">Notification Preferences</h3>
-          <div className="space-y-1">
-            <ToggleSwitch
-              checked={userSettings.email_notifications}
-              onChange={(checked) => handleSettingChange('email_notifications', checked)}
-              label="Email Notifications"
-              description="Receive notifications via email"
-            />
-            <ToggleSwitch
-              checked={userSettings.sms_notifications}
-              onChange={(checked) => handleSettingChange('sms_notifications', checked)}
-              label="SMS Notifications"
-              description="Receive notifications via SMS"
-            />
-            <ToggleSwitch
-              checked={userSettings.push_notifications}
-              onChange={(checked) => handleSettingChange('push_notifications', checked)}
-              label="Push Notifications"
-              description="Receive browser push notifications"
-            />
-            <ToggleSwitch
-              checked={userSettings.marketing_emails}
-              onChange={(checked) => handleSettingChange('marketing_emails', checked)}
-              label="Marketing Emails"
-              description="Receive promotional and marketing emails"
-            />
-            <ToggleSwitch
-              checked={userSettings.login_notifications}
-              onChange={(checked) => handleSettingChange('login_notifications', checked)}
-              label="Login Notifications"
-              description="Get notified of new login attempts"
-            />
-          </div>
-        </div>
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
       )}
 
-      {/* Preferences Tab */}
-      {activeTab === 'preferences' && (
-        <div className="glass-card p-6">
-          <h3 className="text-xl font-semibold text-white mb-4">App Preferences</h3>
-          <div className="space-y-4">
-            <SelectField
-              label="Language"
-              value={userSettings.language_preference}
-              onChange={(value) => handleSettingChange('language_preference', value)}
-              options={[
-                { value: 'en', label: 'English' },
-                { value: 'af', label: 'Afrikaans' },
-                { value: 'zu', label: 'Zulu' },
-                { value: 'xh', label: 'Xhosa' }
-              ]}
-            />
-            <SelectField
-              label="Theme"
-              value={userSettings.theme_preference}
-              onChange={(value) => handleSettingChange('theme_preference', value)}
-              options={[
-                { value: 'light', label: 'Light Theme' },
-                { value: 'dark', label: 'Dark Theme' },
-                { value: 'auto', label: 'Auto (System)' }
-              ]}
-            />
-            <SelectField
-              label="Date Format"
-              value={userSettings.date_format}
-              onChange={(value) => handleSettingChange('date_format', value)}
-              options={[
-                { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD (2024-12-31)' },
-                { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY (31/12/2024)' },
-                { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY (12/31/2024)' },
-                { value: 'DD-MM-YYYY', label: 'DD-MM-YYYY (31-12-2024)' }
-              ]}
-            />
-            <SelectField
-              label="Time Format"
-              value={userSettings.time_format}
-              onChange={(value) => handleSettingChange('time_format', value)}
-              options={[
-                { value: '24h', label: '24 Hour (14:30)' },
-                { value: '12h', label: '12 Hour (2:30 PM)' }
-              ]}
-            />
-            <InputField
-              type="number"
-              label="Session Timeout (minutes)"
-              value={userSettings.session_timeout}
-              onChange={(value) => handleSettingChange('session_timeout', parseInt(value))}
-              placeholder="1440"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Privacy Tab */}
-      {activeTab === 'privacy' && (
-        <div className="glass-card p-6">
-          <h3 className="text-xl font-semibold text-white mb-4">Privacy Settings</h3>
-          <div className="space-y-1">
-            <ToggleSwitch
-              checked={userSettings.profile_visible}
-              onChange={(checked) => handleSettingChange('profile_visible', checked)}
-              label="Profile Visibility"
-              description="Show your profile to other users"
-            />
-            <ToggleSwitch
-              checked={userSettings.show_online_status}
-              onChange={(checked) => handleSettingChange('show_online_status', checked)}
-              label="Online Status"
-              description="Show when you're available"
-            />
-            <ToggleSwitch
-              checked={userSettings.show_email}
-              onChange={(checked) => handleSettingChange('show_email', checked)}
-              label="Show Email"
-              description="Display email address in profile"
-            />
-            <ToggleSwitch
-              checked={userSettings.show_phone}
-              onChange={(checked) => handleSettingChange('show_phone', checked)}
-              label="Show Phone"
-              description="Display phone number in profile"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Security Tab */}
-      {activeTab === 'security' && (
-        <div className="space-y-6">
-          <div className="glass-card p-6">
-            <h3 className="text-xl font-semibold text-white mb-4">Security Settings</h3>
-            <div className="space-y-4">
-              <ToggleSwitch
-                checked={userSettings.two_factor_enabled}
-                onChange={(checked) => handleSettingChange('two_factor_enabled', checked)}
-                label="Two-Factor Authentication"
-                description="Add an extra layer of security to your account"
-              />
-              
-              <div className="border-t border-white/20 pt-4">
-                <button
-                  onClick={() => setShowPasswordModal(true)}
-                  className="w-full btn-secondary text-left p-3 rounded-xl"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm sm:text-base">Change Password</span>
-                    <span className="text-xl">🔒</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Danger Zone */}
-          <div className="glass-card p-6 border-l-4 border-red-500">
-            <h3 className="text-xl font-semibold text-white mb-4">Danger Zone</h3>
-            <div className="space-y-3">
-              <button
-                onClick={handleAccountDeactivation}
-                className="w-full btn-secondary text-left p-3 rounded-xl border border-red-500/20 hover:border-red-500/40"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm sm:text-base text-red-300">Deactivate Account</span>
-                  <span className="text-xl">⚠️</span>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Save Button */}
-      <div className="glass-card p-4">
-        <button
-          onClick={() => saveSettings()}
-          disabled={saving}
-          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-6 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-600 hover:to-purple-700 transition-all"
+      {/* Tabs */}
+      <Card sx={{ 
+        mb: 3, 
+        bgcolor: COLORS.slate,
+        border: `1px solid rgba(139, 92, 246, 0.2)`,
+        backgroundImage: 'none'
+      }}>
+        <Tabs
+          value={activeTab}
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            borderBottom: `1px solid rgba(255, 255, 255, 0.1)`,
+            '& .MuiTabs-indicator': {
+              backgroundColor: COLORS.purple,
+            },
+            '& .MuiTab-root': {
+              color: 'rgba(255, 255, 255, 0.7)',
+              fontWeight: 600,
+              textTransform: 'none',
+              px: 3,
+              '&.Mui-selected': {
+                color: 'white',
+              }
+            }
+          }}
         >
-          {saving ? 'Saving...' : 'Save Settings'}
-        </button>
-      </div>
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <UserIcon className="h-5 w-5" />
+                <span>Profile</span>
+              </Box>
+            } 
+          />
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <BellIcon className="h-5 w-5" />
+                <span>Notifications</span>
+              </Box>
+            } 
+          />
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Cog6ToothIcon className="h-5 w-5" />
+                <span>Preferences</span>
+              </Box>
+            } 
+          />
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <EyeIcon className="h-5 w-5" />
+                <span>Privacy</span>
+              </Box>
+            } 
+          />
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <LockClosedIcon className="h-5 w-5" />
+                <span>Security</span>
+              </Box>
+            } 
+          />
+        </Tabs>
+      </Card>
 
-      {/* Password Change Modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="glass-card p-6 max-w-md w-full">
-            <h3 className="text-xl font-semibold text-white mb-4">Change Password</h3>
-            <div className="space-y-4">
-              <InputField
-                type="password"
-                label="Current Password"
-                value={passwordData.current_password}
-                onChange={(value) => setPasswordData(prev => ({ ...prev, current_password: value }))}
-                placeholder="Enter current password"
-              />
-              <InputField
-                type="password"
-                label="New Password"
-                value={passwordData.new_password}
-                onChange={(value) => setPasswordData(prev => ({ ...prev, new_password: value }))}
-                placeholder="Enter new password"
-              />
-              <InputField
-                type="password"
-                label="Confirm New Password"
-                value={passwordData.confirm_password}
-                onChange={(value) => setPasswordData(prev => ({ ...prev, confirm_password: value }))}
-                placeholder="Confirm new password"
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowPasswordModal(false)}
-                  className="flex-1 btn-secondary py-2 rounded-lg"
+      {/* Tab Content - Fixed height to prevent animation */}
+      <Box sx={{ minHeight: 400 }}>
+        {/* Profile Tab */}
+        {activeTab === 0 && (
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(139, 92, 246, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ color: 'white', mb: 3, fontWeight: 600 }}>
+                Profile Information
+              </Typography>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="First Name"
+                    value={userSettings.first_name}
+                    onChange={(e) => handleChange('first_name', e.target.value)}
+                    fullWidth
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        color: 'white',
+                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                        '&:hover fieldset': { borderColor: COLORS.purple },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.purple },
+                      },
+                      '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.7)' },
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Last Name"
+                    value={userSettings.last_name}
+                    onChange={(e) => handleChange('last_name', e.target.value)}
+                    fullWidth
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        color: 'white',
+                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                        '&:hover fieldset': { borderColor: COLORS.purple },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.purple },
+                      },
+                      '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.7)' },
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Email"
+                    type="email"
+                    value={userSettings.email}
+                    onChange={(e) => handleChange('email', e.target.value)}
+                    fullWidth
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        color: 'white',
+                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                        '&:hover fieldset': { borderColor: COLORS.purple },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.purple },
+                      },
+                      '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.7)' },
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Phone Number"
+                    value={userSettings.phone_number}
+                    onChange={(e) => handleChange('phone_number', e.target.value)}
+                    fullWidth
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        color: 'white',
+                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                        '&:hover fieldset': { borderColor: COLORS.purple },
+                        '&.Mui-focused fieldset': { borderColor: COLORS.purple },
+                      },
+                      '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.7)' },
+                    }}
+                  />
+                </Grid>
+              </Grid>
+
+              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="contained"
+                  onClick={handleSaveSettings}
+                  disabled={saving}
+                  sx={{
+                    bgcolor: COLORS.purple,
+                    '&:hover': { bgcolor: '#7c3aed' },
+                    '&:disabled': { bgcolor: 'rgba(139, 92, 246, 0.3)' },
+                  }}
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={handlePasswordChange}
-                  className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Notifications Tab */}
+        {activeTab === 1 && (
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(139, 92, 246, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ color: 'white', mb: 3, fontWeight: 600 }}>
+                Notification Preferences
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={userSettings.email_notifications}
+                      onChange={(e) => handleChange('email_notifications', e.target.checked)}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': { color: COLORS.green },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: COLORS.green },
+                      }}
+                    />
+                  }
+                  label={<Typography sx={{ color: 'white' }}>Email Notifications</Typography>}
+                />
+
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={userSettings.sms_notifications}
+                      onChange={(e) => handleChange('sms_notifications', e.target.checked)}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': { color: COLORS.green },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: COLORS.green },
+                      }}
+                    />
+                  }
+                  label={<Typography sx={{ color: 'white' }}>SMS Notifications</Typography>}
+                />
+
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={userSettings.push_notifications}
+                      onChange={(e) => handleChange('push_notifications', e.target.checked)}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': { color: COLORS.green },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: COLORS.green },
+                      }}
+                    />
+                  }
+                  label={<Typography sx={{ color: 'white' }}>Push Notifications</Typography>}
+                />
+
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={userSettings.login_notifications}
+                      onChange={(e) => handleChange('login_notifications', e.target.checked)}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': { color: COLORS.green },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: COLORS.green },
+                      }}
+                    />
+                  }
+                  label={<Typography sx={{ color: 'white' }}>Login Notifications</Typography>}
+                />
+              </Box>
+
+              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="contained"
+                  onClick={handleSaveSettings}
+                  disabled={saving}
+                  sx={{
+                    bgcolor: COLORS.purple,
+                    '&:hover': { bgcolor: '#7c3aed' },
+                    '&:disabled': { bgcolor: 'rgba(139, 92, 246, 0.3)' },
+                  }}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Preferences Tab */}
+        {activeTab === 2 && (
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(139, 92, 246, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ color: 'white', mb: 3, fontWeight: 600 }}>
+                Preferences
+              </Typography>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Language</InputLabel>
+                    <Select
+                      value={userSettings.language_preference}
+                      onChange={(e) => handleChange('language_preference', e.target.value)}
+                      label="Language"
+                      sx={{
+                        color: 'white',
+                        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.purple },
+                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.purple },
+                      }}
+                    >
+                      <MenuItem value="en">English</MenuItem>
+                      <MenuItem value="af">Afrikaans</MenuItem>
+                      <MenuItem value="zu">Zulu</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Timezone</InputLabel>
+                    <Select
+                      value={userSettings.timezone}
+                      onChange={(e) => handleChange('timezone', e.target.value)}
+                      label="Timezone"
+                      sx={{
+                        color: 'white',
+                        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.purple },
+                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.purple },
+                      }}
+                    >
+                      <MenuItem value="Africa/Johannesburg">South Africa (SAST)</MenuItem>
+                      <MenuItem value="UTC">UTC</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Date Format</InputLabel>
+                    <Select
+                      value={userSettings.date_format}
+                      onChange={(e) => handleChange('date_format', e.target.value)}
+                      label="Date Format"
+                      sx={{
+                        color: 'white',
+                        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.purple },
+                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.purple },
+                      }}
+                    >
+                      <MenuItem value="YYYY-MM-DD">YYYY-MM-DD</MenuItem>
+                      <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
+                      <MenuItem value="MM/DD/YYYY">MM/DD/YYYY</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Time Format</InputLabel>
+                    <Select
+                      value={userSettings.time_format}
+                      onChange={(e) => handleChange('time_format', e.target.value)}
+                      label="Time Format"
+                      sx={{
+                        color: 'white',
+                        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.purple },
+                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.purple },
+                      }}
+                    >
+                      <MenuItem value="24h">24 Hour</MenuItem>
+                      <MenuItem value="12h">12 Hour (AM/PM)</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+
+              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="contained"
+                  onClick={handleSaveSettings}
+                  disabled={saving}
+                  sx={{
+                    bgcolor: COLORS.purple,
+                    '&:hover': { bgcolor: '#7c3aed' },
+                    '&:disabled': { bgcolor: 'rgba(139, 92, 246, 0.3)' },
+                  }}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Privacy Tab */}
+        {activeTab === 3 && (
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(139, 92, 246, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ color: 'white', mb: 3, fontWeight: 600 }}>
+                Privacy Settings
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={userSettings.profile_visible}
+                      onChange={(e) => handleChange('profile_visible', e.target.checked)}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': { color: COLORS.green },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: COLORS.green },
+                      }}
+                    />
+                  }
+                  label={<Typography sx={{ color: 'white' }}>Make Profile Visible</Typography>}
+                />
+
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={userSettings.show_online_status}
+                      onChange={(e) => handleChange('show_online_status', e.target.checked)}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': { color: COLORS.green },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: COLORS.green },
+                      }}
+                    />
+                  }
+                  label={<Typography sx={{ color: 'white' }}>Show Online Status</Typography>}
+                />
+
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={userSettings.show_email}
+                      onChange={(e) => handleChange('show_email', e.target.checked)}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': { color: COLORS.green },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: COLORS.green },
+                      }}
+                    />
+                  }
+                  label={<Typography sx={{ color: 'white' }}>Show Email Publicly</Typography>}
+                />
+
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={userSettings.show_phone}
+                      onChange={(e) => handleChange('show_phone', e.target.checked)}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': { color: COLORS.green },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: COLORS.green },
+                      }}
+                    />
+                  }
+                  label={<Typography sx={{ color: 'white' }}>Show Phone Publicly</Typography>}
+                />
+              </Box>
+
+              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="contained"
+                  onClick={handleSaveSettings}
+                  disabled={saving}
+                  sx={{
+                    bgcolor: COLORS.purple,
+                    '&:hover': { bgcolor: '#7c3aed' },
+                    '&:disabled': { bgcolor: 'rgba(139, 92, 246, 0.3)' },
+                  }}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Security Tab */}
+        {activeTab === 4 && (
+          <Card sx={{ 
+            bgcolor: COLORS.slate,
+            border: `1px solid rgba(139, 92, 246, 0.2)`,
+            backgroundImage: 'none'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ color: 'white', mb: 3, fontWeight: 600 }}>
+                Security Settings
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<KeyIcon className="h-5 w-5" />}
+                  onClick={() => setShowPasswordModal(true)}
+                  sx={{
+                    borderColor: COLORS.purple,
+                    color: COLORS.purple,
+                    py: 1.5,
+                    '&:hover': {
+                      borderColor: '#7c3aed',
+                      backgroundColor: 'rgba(139, 92, 246, 0.1)'
+                    }
+                  }}
                 >
                   Change Password
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+                </Button>
 
-export default TutorSettings
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={userSettings.two_factor_enabled}
+                      onChange={(e) => handleChange('two_factor_enabled', e.target.checked)}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': { color: COLORS.green },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: COLORS.green },
+                      }}
+                    />
+                  }
+                  label={<Typography sx={{ color: 'white' }}>Enable Two-Factor Authentication</Typography>}
+                />
+
+                <FormControl fullWidth>
+                  <InputLabel sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Session Timeout (minutes)</InputLabel>
+                  <Select
+                    value={userSettings.session_timeout}
+                    onChange={(e) => handleChange('session_timeout', e.target.value)}
+                    label="Session Timeout (minutes)"
+                    sx={{
+                      color: 'white',
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.purple },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.purple },
+                    }}
+                  >
+                    <MenuItem value={30}>30 minutes</MenuItem>
+                    <MenuItem value={60}>1 hour</MenuItem>
+                    <MenuItem value={120}>2 hours</MenuItem>
+                    <MenuItem value={1440}>24 hours</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+
+              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="contained"
+                  onClick={handleSaveSettings}
+                  disabled={saving}
+                  sx={{
+                    bgcolor: COLORS.purple,
+                    '&:hover': { bgcolor: '#7c3aed' },
+                    '&:disabled': { bgcolor: 'rgba(139, 92, 246, 0.3)' },
+                  }}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+      </Box>
+
+      {/* Password Change Modal */}
+      <Dialog
+        open={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: COLORS.slate,
+            backgroundImage: 'none',
+            border: `1px solid rgba(139, 92, 246, 0.2)`,
+          }
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: `1px solid rgba(255, 255, 255, 0.1)` }}>
+          <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>
+            Change Password
+          </Typography>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
+            <TextField
+              label="Current Password"
+              type="password"
+              value={passwordData.current_password}
+              onChange={(e) => setPasswordData(prev => ({ ...prev, current_password: e.target.value }))}
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  color: 'white',
+                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                  '&:hover fieldset': { borderColor: COLORS.purple },
+                  '&.Mui-focused fieldset': { borderColor: COLORS.purple },
+                },
+                '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.7)' },
+              }}
+            />
+
+            <TextField
+              label="New Password"
+              type="password"
+              value={passwordData.new_password}
+              onChange={(e) => setPasswordData(prev => ({ ...prev, new_password: e.target.value }))}
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  color: 'white',
+                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                  '&:hover fieldset': { borderColor: COLORS.purple },
+                  '&.Mui-focused fieldset': { borderColor: COLORS.purple },
+                },
+                '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.7)' },
+              }}
+            />
+
+            <TextField
+              label="Confirm New Password"
+              type="password"
+              value={passwordData.confirm_password}
+              onChange={(e) => setPasswordData(prev => ({ ...prev, confirm_password: e.target.value }))}
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  color: 'white',
+                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                  '&:hover fieldset': { borderColor: COLORS.purple },
+                  '&.Mui-focused fieldset': { borderColor: COLORS.purple },
+                },
+                '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.7)' },
+              }}
+            />
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 3, borderTop: `1px solid rgba(255, 255, 255, 0.1)` }}>
+          <Button
+            onClick={() => setShowPasswordModal(false)}
+            sx={{ color: 'rgba(255, 255, 255, 0.7)' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handlePasswordChange}
+            variant="contained"
+            sx={{
+              bgcolor: COLORS.purple,
+              '&:hover': { bgcolor: '#7c3aed' }
+            }}
+          >
+            Change Password
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default TutorSettings;

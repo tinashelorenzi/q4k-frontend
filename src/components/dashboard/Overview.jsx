@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api';
 import LogSessionModal from './LogSessionModal';
@@ -48,6 +49,7 @@ const COLORS = {
 
 const Overview = () => {
   const { user, tutorProfile, isTutor, getTutorId } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showLogSession, setShowLogSession] = useState(false);
@@ -61,7 +63,8 @@ const Overview = () => {
       pendingSessions: 0,
       totalEarnings: 0,
       thisWeekHours: 0,
-      thisMonthEarnings: 0
+      thisMonthEarnings: 0,
+      pendingEarnings: 0
     }
   });
 
@@ -80,85 +83,128 @@ const Overview = () => {
           throw new Error('Unable to load tutor information');
         }
 
-        // Load tutor's gigs
+        // Load tutor's gigs (which includes recent_sessions)
         const gigsResponse = await apiService.apiCall(`/gigs/tutor/${tutorId}/`);
         const gigs = gigsResponse.results || gigsResponse;
 
-        // Load tutor's sessions
-        const sessionsResponse = await apiService.apiCall(`/gigs/sessions/tutor/${tutorId}/`);
-        const sessions = sessionsResponse.results || sessionsResponse;
+        console.log('📊 Loaded Gigs:', gigs.length);
 
-        // Create a map of gig ID to hourly rate for quick lookup
-        const gigRateMap = {};
-        gigs.forEach(gig => {
-          gigRateMap[gig.id] = parseFloat(gig.hourly_rate_tutor || 0);
-        });
+        // We still need to get ALL sessions (not just recent_sessions from gigs)
+        // because recent_sessions is limited to last 5 sessions per gig
+        const sessionsResponse = await apiService.apiCall(`/gigs/sessions/tutor/${tutorId}/`);
+        const allSessions = sessionsResponse.results || sessionsResponse;
+
+        console.log('📊 All Sessions:', allSessions.length);
 
         // Calculate stats
         const activeGigs = gigs.filter(gig => gig.status === 'active').length;
         
         // Filter verified sessions
-        const verifiedSessions = sessions.filter(session => session.is_verified);
+        const verifiedSessions = allSessions.filter(session => session.is_verified);
         
-        const completedHours = verifiedSessions
-          .reduce((total, session) => total + parseFloat(session.hours_logged || 0), 0);
+        console.log('✅ Verified sessions:', verifiedSessions.length);
+        console.log('⏳ Pending sessions:', allSessions.length - verifiedSessions.length);
         
-        const pendingSessions = sessions.filter(session => !session.is_verified).length;
+        // Calculate completed hours from verified sessions
+        const completedHours = verifiedSessions.reduce((total, session) => {
+          return total + parseFloat(session.hours_logged || 0);
+        }, 0);
+        
+        const pendingSessions = allSessions.filter(session => !session.is_verified).length;
         
         // Calculate total earnings from verified sessions
-        const totalEarnings = verifiedSessions
-          .reduce((total, session) => {
-            const gigId = session.gig;
-            const hourlyRate = gigRateMap[gigId] || 0;
+        // Each session has a gig ID, we need to find the matching gig's hourly rate
+        let totalEarnings = 0;
+        
+        verifiedSessions.forEach(session => {
+          // Find the gig this session belongs to
+          const sessionGig = gigs.find(g => g.id === session.gig);
+          
+          if (sessionGig) {
+            const hourlyRate = parseFloat(sessionGig.hourly_rate_tutor || 0);
             const hours = parseFloat(session.hours_logged || 0);
-            return total + (hourlyRate * hours);
-          }, 0);
+            const sessionEarnings = hourlyRate * hours;
+            
+            console.log(`💰 Session ${session.session_id}: ${hours}hrs × R${hourlyRate}/hr = R${sessionEarnings.toFixed(2)}`);
+            
+            totalEarnings += sessionEarnings;
+          } else {
+            console.warn(`⚠️ Could not find gig ${session.gig} for session ${session.session_id}`);
+          }
+        });
 
-        // Calculate this week's hours and earnings
+        console.log('💰 TOTAL EARNINGS:', totalEarnings.toFixed(2));
+
+        // Calculate this week's hours
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        const thisWeekSessions = verifiedSessions
-          .filter(session => {
-            const sessionDate = new Date(session.session_date);
-            return sessionDate >= oneWeekAgo;
-          });
         
-        const thisWeekHours = thisWeekSessions
-          .reduce((total, session) => total + parseFloat(session.hours_logged || 0), 0);
+        const thisWeekSessions = verifiedSessions.filter(session => {
+          const sessionDate = new Date(session.session_date);
+          return sessionDate >= oneWeekAgo;
+        });
+        
+        const thisWeekHours = thisWeekSessions.reduce((total, session) => {
+          return total + parseFloat(session.hours_logged || 0);
+        }, 0);
         
         // Calculate this month's earnings
         const now = new Date();
         const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const thisMonthSessions = verifiedSessions
-          .filter(session => {
-            const sessionDate = new Date(session.session_date);
-            return sessionDate >= thisMonthStart;
-          });
         
-        const thisMonthEarnings = thisMonthSessions
-          .reduce((total, session) => {
-            const gigId = session.gig;
-            const hourlyRate = gigRateMap[gigId] || 0;
+        const thisMonthSessions = verifiedSessions.filter(session => {
+          const sessionDate = new Date(session.session_date);
+          return sessionDate >= thisMonthStart;
+        });
+        
+        let thisMonthEarnings = 0;
+        thisMonthSessions.forEach(session => {
+          const sessionGig = gigs.find(g => g.id === session.gig);
+          if (sessionGig) {
+            const hourlyRate = parseFloat(sessionGig.hourly_rate_tutor || 0);
             const hours = parseFloat(session.hours_logged || 0);
-            return total + (hourlyRate * hours);
-          }, 0);
+            thisMonthEarnings += hourlyRate * hours;
+          }
+        });
+
+        console.log('📅 This Month Earnings:', thisMonthEarnings.toFixed(2));
+        console.log('📅 This Week Hours:', thisWeekHours.toFixed(2));
+
+        // Calculate pending earnings from unverified sessions
+        const pendingSessionsList = allSessions.filter(session => !session.is_verified);
+        let pendingEarnings = 0;
+        pendingSessionsList.forEach(session => {
+          const sessionGig = gigs.find(g => g.id === session.gig);
+          if (sessionGig) {
+            const hourlyRate = parseFloat(sessionGig.hourly_rate_tutor || 0);
+            const hours = parseFloat(session.hours_logged || 0);
+            pendingEarnings += hourlyRate * hours;
+          }
+        });
+
+        console.log('⏳ Pending Earnings:', pendingEarnings.toFixed(2));
+
+        const stats = {
+          totalGigs: gigs.length,
+          activeGigs,
+          completedHours: parseFloat(completedHours.toFixed(2)),
+          pendingSessions,
+          totalEarnings: parseFloat(totalEarnings.toFixed(2)),
+          thisWeekHours: parseFloat(thisWeekHours.toFixed(2)),
+          thisMonthEarnings: parseFloat(thisMonthEarnings.toFixed(2)),
+          pendingEarnings: parseFloat(pendingEarnings.toFixed(2))
+        };
+
+        console.log('📊 Final Stats:', stats);
 
         setDashboardData({
           gigs,
-          recentSessions: sessions.slice(0, 5),
-          stats: {
-            totalGigs: gigs.length,
-            activeGigs,
-            completedHours,
-            pendingSessions,
-            totalEarnings,
-            thisWeekHours,
-            thisMonthEarnings
-          }
+          recentSessions: allSessions.slice(0, 5),
+          stats
         });
       }
     } catch (err) {
-      console.error('Error loading dashboard data:', err);
+      console.error('❌ Error loading dashboard data:', err);
       setError(err.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -225,7 +271,7 @@ const Overview = () => {
     <Box>
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <Card sx={{ 
             bgcolor: COLORS.slate,
             border: `1px solid rgba(139, 92, 246, 0.2)`,
@@ -255,7 +301,7 @@ const Overview = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <Card sx={{ 
             bgcolor: COLORS.slate,
             border: `1px solid rgba(16, 185, 129, 0.2)`,
@@ -285,7 +331,7 @@ const Overview = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <Card sx={{ 
             bgcolor: COLORS.slate,
             border: `1px solid rgba(245, 158, 11, 0.2)`,
@@ -315,7 +361,7 @@ const Overview = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <Card sx={{ 
             bgcolor: COLORS.slate,
             border: `1px solid rgba(16, 185, 129, 0.2)`,
@@ -348,7 +394,7 @@ const Overview = () => {
 
       {/* Time-based Stats */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid item xs={12} sm={6} lg={4}>
           <Card sx={{ 
             bgcolor: COLORS.slate,
             border: `1px solid rgba(139, 92, 246, 0.2)`,
@@ -378,7 +424,7 @@ const Overview = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid item xs={12} sm={6} lg={4}>
           <Card sx={{ 
             bgcolor: COLORS.slate,
             border: `1px solid rgba(59, 130, 246, 0.2)`,
@@ -408,7 +454,7 @@ const Overview = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid item xs={12} sm={6} lg={4}>
           <Card sx={{ 
             bgcolor: COLORS.slate,
             border: `1px solid rgba(245, 158, 11, 0.2)`,
@@ -427,10 +473,13 @@ const Overview = () => {
                 </Avatar>
                 <Box>
                   <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
-                    {stats.pendingSessions}
+                    {formatCurrency(stats.pendingEarnings)}
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                    Pending Sessions
+                    Pending Earnings
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                    {stats.pendingSessions} sessions awaiting approval
                   </Typography>
                 </Box>
               </Box>
@@ -479,19 +528,22 @@ const Overview = () => {
                           </Avatar>
                         </ListItemIcon>
                         <ListItemText
-                          primary={
-                            <Typography variant="body1" sx={{ color: 'white', fontWeight: 600 }}>
-                              {session.gig_info?.title || 'Session'}
-                            </Typography>
-                          }
+                          primary={session.gig_info?.title || 'Session'}
                           secondary={
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                              <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                            <React.Fragment>
+                              <Box component="span" sx={{ display: 'inline-block', mr: 1 }}>
                                 {formatDate(session.session_date)} • {session.hours_logged}h
-                              </Typography>
+                              </Box>
                               {getStatusChip(session.is_verified ? 'verified' : 'pending')}
-                            </Box>
+                            </React.Fragment>
                           }
+                          primaryTypographyProps={{
+                            sx: { color: 'white', fontWeight: 600 }
+                          }}
+                          secondaryTypographyProps={{
+                            component: 'div',
+                            sx: { color: 'rgba(255, 255, 255, 0.7)', mt: 0.5 }
+                          }}
                         />
                       </ListItem>
                       {index < recentSessions.length - 1 && (
@@ -520,10 +572,13 @@ const Overview = () => {
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Button
                   variant="outlined"
+                  fullWidth
                   startIcon={<BookOpenIcon className="h-5 w-5" />}
+                  onClick={() => navigate('/dashboard/gigs')}
                   sx={{
                     borderColor: COLORS.purple,
                     color: COLORS.purple,
+                    py: 1.5,
                     '&:hover': {
                       borderColor: '#7c3aed',
                       backgroundColor: 'rgba(139, 92, 246, 0.1)'
@@ -535,11 +590,13 @@ const Overview = () => {
                 
                 <Button
                   variant="outlined"
+                  fullWidth
                   startIcon={<ClockIcon className="h-5 w-5" />}
                   onClick={() => setShowLogSession(true)}
                   sx={{
                     borderColor: COLORS.green,
                     color: COLORS.green,
+                    py: 1.5,
                     '&:hover': {
                       borderColor: '#059669',
                       backgroundColor: 'rgba(16, 185, 129, 0.1)'
@@ -551,10 +608,13 @@ const Overview = () => {
                 
                 <Button
                   variant="outlined"
+                  fullWidth
                   startIcon={<PencilSquareIcon className="h-5 w-5" />}
+                  onClick={() => navigate('/dashboard/settings')}
                   sx={{
                     borderColor: COLORS.yellow,
                     color: COLORS.yellow,
+                    py: 1.5,
                     '&:hover': {
                       borderColor: '#d97706',
                       backgroundColor: 'rgba(245, 158, 11, 0.1)'

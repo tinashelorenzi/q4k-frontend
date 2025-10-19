@@ -27,6 +27,8 @@ import {
   Snackbar,
   Grid,
   Autocomplete,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   VideoCameraIcon,
@@ -52,12 +54,16 @@ const COLORS = {
 };
 
 const OnlineSessionsManagement = () => {
+  const [activeTab, setActiveTab] = useState(0);
   const [sessions, setSessions] = useState([]);
+  const [meetingRequests, setMeetingRequests] = useState([]);
   const [gigs, setGigs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -84,6 +90,10 @@ const OnlineSessionsManagement = () => {
       // Load online sessions
       const sessionsData = await apiService.apiCall('/gigs/online-sessions/');
       setSessions(sessionsData.results || []);
+      
+      // Load meeting requests
+      const requestsData = await apiService.apiCall('/gigs/meeting-requests/');
+      setMeetingRequests(requestsData || []);
       
       // Load gigs with assigned tutors
       const gigsData = await apiService.apiCall('/gigs/?status=active&page_size=100');
@@ -212,6 +222,25 @@ const OnlineSessionsManagement = () => {
     });
   };
 
+  const handleReviewRequest = async (action) => {
+    if (!selectedRequest) return;
+
+    try {
+      const response = await apiService.apiCall(`/gigs/meeting-requests/${selectedRequest.id}/review/`, {
+        method: 'POST',
+        body: JSON.stringify({ action })
+      });
+
+      showSnackbar(response.message || `Request ${action}d successfully`, 'success');
+      setReviewDialogOpen(false);
+      setSelectedRequest(null);
+      loadData();
+    } catch (error) {
+      console.error('Error reviewing request:', error);
+      showSnackbar(error.message || `Failed to ${action} request`, 'error');
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
@@ -219,6 +248,8 @@ const OnlineSessionsManagement = () => {
       </Box>
     );
   }
+
+  const pendingRequests = meetingRequests.filter(r => r.status === 'pending');
 
   return (
     <Box sx={{ maxWidth: '100%', px: 2 }}>
@@ -247,6 +278,27 @@ const OnlineSessionsManagement = () => {
           Create Online Session
         </Button>
       </Box>
+
+      {/* Tabs */}
+      <Card sx={{ mb: 3, bgcolor: COLORS.slate, border: `1px solid rgba(139, 92, 246, 0.2)`, backgroundImage: 'none' }}>
+        <Tabs
+          value={activeTab}
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          sx={{
+            borderBottom: `1px solid rgba(255, 255, 255, 0.1)`,
+            '& .MuiTabs-indicator': { backgroundColor: COLORS.purple },
+            '& .MuiTab-root': {
+              color: 'rgba(255, 255, 255, 0.7)',
+              fontWeight: 600,
+              textTransform: 'none',
+              '&.Mui-selected': { color: 'white' }
+            }
+          }}
+        >
+          <Tab label={`All Sessions (${sessions.length})`} />
+          <Tab label={`Pending Requests (${pendingRequests.length})`} />
+        </Tabs>
+      </Card>
 
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -292,8 +344,9 @@ const OnlineSessionsManagement = () => {
         </Grid>
       </Grid>
 
-      {/* Sessions Table */}
-      <Card sx={{ bgcolor: COLORS.slate, overflow: 'hidden' }}>
+      {/* All Sessions Tab */}
+      {activeTab === 0 && (
+        <Card sx={{ bgcolor: COLORS.slate, overflow: 'hidden' }}>
         <TableContainer>
           <Table>
             <TableHead>
@@ -398,6 +451,109 @@ const OnlineSessionsManagement = () => {
           </Table>
         </TableContainer>
       </Card>
+      )}
+
+      {/* Pending Requests Tab */}
+      {activeTab === 1 && (
+        <Card sx={{ bgcolor: COLORS.slate, overflow: 'hidden' }}>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'rgba(139, 92, 246, 0.1)' }}>
+                  <TableCell sx={{ color: 'white', fontWeight: 600 }}>Request ID</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 600 }}>Tutor</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 600 }}>Gig</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 600 }}>Requested Start</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 600 }}>Duration</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 600 }}>Status</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 600 }}>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {meetingRequests.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} sx={{ textAlign: 'center', py: 8, color: 'rgba(255, 255, 255, 0.5)' }}>
+                      No meeting requests found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  meetingRequests.map((request) => (
+                    <TableRow
+                      key={request.id}
+                      sx={{
+                        '&:hover': { bgcolor: 'rgba(139, 92, 246, 0.05)' },
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
+                      }}
+                    >
+                      <TableCell sx={{ color: 'white' }}>{request.request_id}</TableCell>
+                      <TableCell sx={{ color: 'white' }}>{request.tutor_name}</TableCell>
+                      <TableCell sx={{ color: 'white' }}>
+                        {request.gig_id}
+                        <Typography variant="caption" sx={{ display: 'block', color: 'rgba(255, 255, 255, 0.6)' }}>
+                          {request.gig_title}
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ color: 'white' }}>{formatDateTime(request.requested_start)}</TableCell>
+                      <TableCell sx={{ color: 'white' }}>{request.requested_duration} min</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                          size="small"
+                          sx={{
+                            bgcolor: request.status === 'pending' ? `${COLORS.yellow}30` : 
+                                     request.status === 'approved' ? `${COLORS.green}30` : `${COLORS.red}30`,
+                            color: request.status === 'pending' ? COLORS.yellow : 
+                                   request.status === 'approved' ? COLORS.green : COLORS.red,
+                            fontWeight: 600
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {request.status === 'pending' ? (
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Tooltip title="Approve Request">
+                              <IconButton
+                                onClick={() => {
+                                  setSelectedRequest(request);
+                                  setReviewDialogOpen(true);
+                                }}
+                                sx={{ color: COLORS.green }}
+                              >
+                                <CheckCircleIcon className="h-5 w-5" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Reject Request">
+                              <IconButton
+                                onClick={() => {
+                                  setSelectedRequest(request);
+                                  handleReviewRequest('reject');
+                                }}
+                                sx={{ color: COLORS.red }}
+                              >
+                                <XCircleIcon className="h-5 w-5" />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        ) : request.status === 'approved' && request.created_session_id ? (
+                          <Chip
+                            label={`Session: ${request.created_session_id}`}
+                            size="small"
+                            sx={{ bgcolor: `${COLORS.green}20`, color: COLORS.green }}
+                          />
+                        ) : (
+                          <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                            {request.status === 'rejected' ? 'Rejected' : '—'}
+                          </Typography>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Card>
+      )}
 
       {/* Create Session Dialog */}
       <Dialog
@@ -681,6 +837,97 @@ const OnlineSessionsManagement = () => {
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      {/* Review Request Dialog */}
+      <Dialog
+        open={reviewDialogOpen}
+        onClose={() => setReviewDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: COLORS.slate,
+            backgroundImage: 'none',
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: 'white', fontWeight: 600 }}>
+          Approve Meeting Request
+        </DialogTitle>
+        <DialogContent>
+          {selectedRequest && (
+            <Box sx={{ pt: 2 }}>
+              <Alert severity="info" sx={{ mb: 3 }}>
+                Approving this request will automatically create an online session and send invitation emails to the tutor and client.
+              </Alert>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Request ID
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: 'white', fontWeight: 600 }}>
+                    {selectedRequest.request_id}
+                  </Typography>
+                </Box>
+                
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Tutor
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: 'white', fontWeight: 600 }}>
+                    {selectedRequest.tutor_name}
+                  </Typography>
+                </Box>
+                
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Gig
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: 'white', fontWeight: 600 }}>
+                    {selectedRequest.gig_id} - {selectedRequest.gig_title}
+                  </Typography>
+                </Box>
+                
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                    Requested Time
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: 'white', fontWeight: 600 }}>
+                    {formatDateTime(selectedRequest.requested_start)} ({selectedRequest.requested_duration} minutes)
+                  </Typography>
+                </Box>
+                
+                {selectedRequest.request_notes && (
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                      Notes
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: 'white' }}>
+                      {selectedRequest.request_notes}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button onClick={() => setReviewDialogOpen(false)} sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => handleReviewRequest('approve')}
+            variant="contained"
+            sx={{
+              bgcolor: COLORS.green,
+              '&:hover': { bgcolor: '#059669' }
+            }}
+          >
+            Approve & Create Session
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* Snackbar */}

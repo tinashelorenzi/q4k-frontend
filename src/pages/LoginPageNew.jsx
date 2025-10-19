@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -57,8 +57,16 @@ const LoginPageNew = () => {
       
       // Login successful if we get a response with user data
       if (result && result.user) {
-        console.log('Login successful, navigating to dashboard');
-        navigate('/dashboard');
+        console.log('Login successful, redirecting based on user type');
+        
+        // Redirect based on user type
+        if (result.user.user_type === 'admin' || 
+            result.user.user_type === 'manager' || 
+            result.user.user_type === 'staff') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       } else {
         console.error('Login failed: No user data in response');
         setError('Invalid credentials. Please try again.');
@@ -211,7 +219,8 @@ const LoginPageNew = () => {
 
               <Box sx={{ textAlign: 'right', mb: 3 }}>
                 <MuiLink
-                  href="#"
+                  component={RouterLink}
+                  to="/forgot-password"
                   sx={{
                     color: '#8b5cf6',
                     textDecoration: 'none',

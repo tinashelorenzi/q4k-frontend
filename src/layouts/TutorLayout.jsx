@@ -26,7 +26,8 @@ import {
   BookOpenIcon, 
   ClockIcon, 
   Cog6ToothIcon,
-  HandRaisedIcon 
+  HandRaisedIcon,
+  VideoCameraIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
@@ -42,6 +43,7 @@ const TutorLayout = () => {
     if (path === '/dashboard' || path === '/dashboard/overview') return '/dashboard/overview';
     if (path.includes('/dashboard/gigs')) return '/dashboard/gigs';
     if (path.includes('/dashboard/sessions')) return '/dashboard/sessions';
+    if (path.includes('/dashboard/online-meetings')) return '/dashboard/online-meetings';
     if (path.includes('/dashboard/settings')) return '/dashboard/settings';
     return '/dashboard/overview';
   };
@@ -87,6 +89,11 @@ const TutorLayout = () => {
       value: '/dashboard/sessions',
       label: 'Sessions', 
       icon: ClockIcon,
+    },
+    { 
+      value: '/dashboard/online-meetings',
+      label: 'Online Meetings', 
+      icon: VideoCameraIcon,
     },
     { 
       value: '/dashboard/settings',
